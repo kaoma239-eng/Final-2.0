@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <title>About Us | MKCA</title>
+  <meta name="description" content="Learn about Mpangwe Kasonso Chartered Accountants and the Easy Digital Insurance Platform (eDIP) service offered through the firm." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-white text-slate-900 scroll-smooth">
+  <header class="site-header fixed inset-x-0 top-0 z-50 bg-white/95 border-b border-slate-200 backdrop-blur-xl">
+    <div class="container mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="flex items-center gap-3 font-semibold text-slate-900">
+        <img src="assets/logos/Bright Cyan MKCA Logo Letters.png" alt="MKCA logo" class="h-11 w-auto object-contain ring-1 ring-slate-200 bg-white shadow-sm rounded-md" />
+        <div>
+          <span class="block text-xs text-slate-500">Mpangwe Kasonso Chartered Accountants</span>
+        </div>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-700">
+        <a href="index.html">Home</a>
+        <a href="about.html">About Us</a>
+        <a href="services.html">Our Services</a>
+        <a href="products.html">Insurance Solutions</a>
+        <a href="contact.html" class="btn btn-primary btn-sm">Contact Us</a>
+      </nav>
+      <button id="mobileMenuButton" class="md:hidden text-slate-800 focus:outline-none" aria-label="Open menu">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="mobileNav" class="mobile-nav fixed inset-0 z-40 hidden bg-slate-950/95 backdrop-blur-sm">
+    <div class="h-full w-full p-6 flex flex-col">
+      <div class="flex items-center justify-between mb-10">
+        <div class="flex items-center gap-3 text-white">
+          <div class="h-11 w-11 rounded-xl bg-white/10 flex items-center justify-center text-xl">e</div>
+          <div>
+            <p class="text-lg font-semibold">eDIP</p>
+            <p class="text-sm text-slate-300">Easy Digital Insurance Platform</p>
+          </div>
+        </div>
+        <button id="mobileCloseButton" class="text-slate-200 text-2xl">×</button>
+      </div>
+      <nav class="space-y-6 text-white text-lg flex-1">
+        <a href="index.html" class="block">Home</a>
+        <a href="products.html" class="block">Products</a>
+        <a href="quote-calculator.html" class="block">Get a Quote</a>
+        <a href="claims.html" class="block">Claims</a>
+        <a href="about.html" class="block">About eDIP</a>
+        <a href="contact.html" class="block">Contact</a>
+      </nav>
+    </div>
+  </div>
+
+  <main class="pt-28">
+    <section class="bg-slate-50 py-20">
+      <div class="container mx-auto px-6 text-center">
+        <p class="text-sm uppercase tracking-[0.3em] text-sky-600 mb-4">About MKCA</p>
+        <h1 class="text-5xl font-bold text-slate-900 mb-6">Professional accountability, practical support and modern business solutions</h1>
+        <p class="text-xl text-slate-600 max-w-3xl mx-auto">Mpangwe Kasonso Chartered Accountants provides financial and business support services with a focus on practical guidance, professional accountability and modern access to essential services.</p>
+      </div>
+    </section>
+
+    <section class="container mx-auto px-6 py-20">
+      <div class="grid gap-10 lg:grid-cols-2">
+        <div class="card">
+          <h2 class="text-3xl font-bold mb-5">Who we are</h2>
+          <p class="text-slate-600 mb-4">MKCA is a professional firm providing financial, operational and advisory support to businesses and individuals seeking dependable, structured solutions.</p>
+          <p class="text-slate-600">As part of the firm's digital offering, Easy Digital Insurance Platform (eDIP) provides a secure channel through which customers can explore available insurance solutions and request quotations.</p>
+        </div>
+        <div class="card">
+          <h2 class="text-3xl font-bold mb-5">Our approach</h2>
+          <ul class="space-y-3 text-slate-700">
+            <li>• Professional service with clear communication</li>
+            <li>• Practical, commercially aware support</li>
+            <li>• Digital access to essential services</li>
+            <li>• Accountability and process discipline</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-slate-950 text-white py-20">
+      <div class="container mx-auto px-6">
+        <div class="max-w-3xl mx-auto text-center">
+          <h2 class="text-4xl font-bold mb-6">MKCA and eDIP</h2>
+          <p class="text-slate-300">MKCA remains the parent professional-services firm. eDIP is the digital insurance access platform offered through MKCA, designed to help customers explore available insurance solutions in a convenient and structured way.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-slate-950 text-slate-300">
+    <div class="container mx-auto px-6 py-12 text-center text-sm text-slate-500">Mpangwe Kasonso Chartered Accountants • Easy Digital Insurance Platform (eDIP)</div>
+  </footer>
+
+  <button id="backToTop" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-600 px-4 py-3 text-white shadow-xl shadow-slate-900/25">↑</button>
+  <script src="script.js"></script>
+</body>
+</html>

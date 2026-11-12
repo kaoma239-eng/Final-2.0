@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: mkca-insurance-api
+    env: node
+    plan: starter
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: BASE_URL
+        value: https://mkca-insurance-api.onrender.com
+      - key: ALLOWED_ORIGINS
+        value: https://mkca-insurance-api.onrender.com,https://mkcharteredaccountants.co
+      - key: SESSION_SECRET
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: mkca_platform
+      - key: ADMIN_USERNAME
+        value: MKCA24
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_EMAIL
+        value: admin@mkca.local
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "465"
+      - key: EMAIL_SECURE
+        value: "true"
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: MKCA Insurance

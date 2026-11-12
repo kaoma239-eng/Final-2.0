@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <title>Quote Calculator | eDIP</title>
+  <meta name="description" content="Use eDIP to calculate one-month loan protection cover for salary advances and P2P lending under Sanlam Life Assurance." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-white text-slate-900 scroll-smooth">
+  <header class="site-header fixed inset-x-0 top-0 z-50 bg-white/95 border-b border-slate-200 backdrop-blur-xl">
+    <div class="container mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="flex items-center gap-3 font-semibold text-slate-900">
+        <img src="assets/logos/edip-logo.svg" alt="eDIP logo" class="h-12 w-auto object-contain rounded-xl ring-1 ring-slate-200 bg-white shadow-sm" />
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-700">
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="claims.html">Claims</a>
+        <a href="about.html">About eDIP</a>
+        <a href="contact.html" class="btn btn-primary btn-sm">Contact</a>
+      </nav>
+      <button id="mobileMenuButton" class="md:hidden text-slate-800 focus:outline-none" aria-label="Open menu">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="mobileNav" class="mobile-nav fixed inset-0 z-40 hidden bg-slate-950/95 backdrop-blur-sm">
+    <div class="h-full w-full p-6 flex flex-col">
+      <div class="flex items-center justify-between mb-10">
+        <div class="flex items-center gap-3 text-white">
+          <div class="h-11 w-11 rounded-xl bg-white/10 flex items-center justify-center text-xl">I</div>
+          <div>
+            <p class="text-lg font-semibold">Insurance Platform</p>
+            <p class="text-sm text-slate-300">Instant Quote Calculator</p>
+          </div>
+        </div>
+        <button id="mobileCloseButton" class="text-slate-200 text-2xl">×</button>
+      </div>
+      <nav class="space-y-6 text-white text-lg flex-1">
+        <a href="index.html" class="block">Home</a>
+        <a href="products.html" class="block">Products</a>
+        <a href="claims.html" class="block">Claims</a>
+        <a href="contact.html" class="block">Contact</a>
+      </nav>
+    </div>
+  </div>
+
+  <main class="pt-28">
+    <section class="bg-slate-50 py-20">
+      <div class="container mx-auto px-6">
+        <div class="grid gap-10 lg:grid-cols-2 lg:items-center">
+          <div>
+            <p class="text-sm uppercase tracking-[0.3em] text-sky-600 mb-4">Instant Quote</p>
+            <h1 class="text-5xl font-bold text-slate-900 mb-6">Calculate premium coverage instantly.</h1>
+            <p class="text-xl text-slate-600 mb-8">Use our calculator to estimate monthly loan protection premiums for salary advances and P2P lending.</p>
+            <div class="grid gap-4">
+              <div class="rounded-3xl bg-white p-6 shadow-lg">
+                <p class="text-sm uppercase tracking-[0.25em] text-slate-500">Coverage Value</p>
+                <p id="coverageValue" class="mt-3 text-3xl font-semibold text-slate-900">ZMW 100,000</p>
+              </div>
+            </div>
+          </div>
+          <div class="rounded-[2rem] bg-white p-8 shadow-2xl border border-slate-200">
+            <form id="quoteForm" class="space-y-6">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Insurance Product</label>
+                <div id="productNameDisplay" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900">Loan Protection</div>
+                <input type="hidden" id="productSelect" value="life" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Insurance Company</label>
+                <select id="insurerSelect" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100">
+                  <option value="sanlam">Sanlam Life Assurance</option>
+                </select>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-2">Age</label>
+                  <input type="number" id="ageInput" min="20" max="75" value="35" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-2">Gender</label>
+                  <select id="genderSelect" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100">
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Coverage Amount (ZMW)</label>
+                <input type="number" id="coverageInput" min="1000" step="1000" value="1000" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Duration (months)</label>
+                <input type="number" id="durationInput" min="1" max="1" value="1" readonly aria-readonly="true" title="Cover duration is fixed at 1 month" class="w-full rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-slate-700 cursor-not-allowed focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100" />
+                <p class="text-xs text-slate-500 mt-2" id="durationNote">Fixed at 1 month. The cover pays the outstanding balance if the borrower dies.</p>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="rounded-3xl bg-slate-100 p-5">
+                  <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Monthly Premium</p>
+                  <p id="monthlyPremium" class="mt-3 text-3xl font-semibold text-slate-900">ZMW 450</p>
+                </div>
+                <div class="rounded-3xl bg-slate-100 p-5">
+                  <p class="text-sm uppercase tracking-[0.2em] text-slate-500">One-Month Total</p>
+                  <p id="totalCost" class="mt-3 text-3xl font-semibold text-slate-900">ZMW 450</p>
+                </div>
+              </div>
+              <button type="button" id="applyButton" class="btn btn-primary w-full">Proceed to Apply</button>
+            </form>
+            <!-- Summary modal -->
+            <div id="summaryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+              <div class="bg-white rounded-2xl max-w-lg w-full p-6">
+                <h3 class="text-xl font-bold mb-4">Application Summary</h3>
+                <div class="space-y-2 text-sm text-slate-700 mb-4">
+                  <div><strong>Product:</strong> <span id="sumProduct"></span></div>
+                  <div><strong>Insurer:</strong> <span id="sumInsurer"></span></div>
+                  <div><strong>Coverage:</strong> ZMW <span id="sumCoverage"></span></div>
+                  <div><strong>Duration (months):</strong> <span id="sumDuration"></span></div>
+                  <div><strong>Monthly Premium:</strong> ZMW <span id="sumMonthly"></span></div>
+                  <div><strong>One-Month Total:</strong> ZMW <span id="sumTotal"></span></div>
+                </div>
+                <p class="text-sm text-slate-600 mb-4">You will provide your customer information on the next page.</p>
+                <div class="flex gap-3">
+                  <button id="closeSummary" class="btn btn-outline flex-1">Back</button>
+                  <button id="proceedPay" class="btn btn-primary flex-1">Continue to Details</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container mx-auto px-6 py-20">
+      <div class="grid gap-8">
+        <div class="card">
+          <h2 class="text-2xl font-bold mb-5">Insurance Provider Selection</h2>
+          <p class="text-sm text-slate-500 mb-4">Salary Advance and P2P products are priced with embedded insurer rates. Loan Protection is structured as a monthly cover on the protected loan amount.</p>
+          <div class="grid gap-4">
+            <div class="rounded-2xl border border-slate-200 p-5">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <p class="font-semibold">Sanlam Life Assurance</p>
+                </div>
+                <button data-insurer="sanlam" class="btn btn-outline btn-sm select-insurer">Select</button>
+              </div>
+              <p class="text-slate-600">Primary insurer delivering secure cover across all products.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-slate-950 text-slate-300">
+    <div class="container mx-auto px-6 py-12 text-center text-sm text-slate-500">Powered by Mpangwe Kasonso Chartered Accountants</div>
+  </footer>
+
+  <button id="backToTop" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-600 px-4 py-3 text-white shadow-xl shadow-slate-900/25">↑</button>
+  <script src="premium-calculator.js"></script>
+  <script src="script.js"></script>
+  <script>
+    const PRODUCT_LABELS = {
+      life: 'Loan Protection',
+      salary: 'Salary Advance',
+      p2p: 'P2P Lending'
+    };
+
+    const productSelect = document.getElementById('productSelect');
+    const insurerSelect = document.getElementById('insurerSelect');
+    const ageInput = document.getElementById('ageInput');
+    const genderSelect = document.getElementById('genderSelect');
+    const coverageInput = document.getElementById('coverageInput');
+    const durationInput = document.getElementById('durationInput');
+    const monthlyEl = document.getElementById('monthlyPremium');
+    const totalEl = document.getElementById('totalCost');
+    const coverageValueEl = document.getElementById('coverageValue');
+    const productNameDisplay = document.getElementById('productNameDisplay');
+    const FIXED_DURATION = 1;
+
+    const selectButtons = document.querySelectorAll('.select-insurer');
+    function lockDurationField() {
+      durationInput.min = 1;
+      durationInput.max = FIXED_DURATION;
+      durationInput.value = FIXED_DURATION;
+      durationInput.readOnly = true;
+      durationInput.setAttribute('aria-readonly', 'true');
+      durationInput.title = 'Cover duration is fixed at 1 month';
+    }
+
+    function refreshQuote() {
+      const selectedProduct = productSelect.value || 'life';
+      lockDurationField();
+      if (productNameDisplay) {
+        productNameDisplay.textContent = PRODUCT_LABELS[selectedProduct] || 'Loan Protection';
+      }
+      const durationNote = document.getElementById('durationNote');
+      durationNote.textContent = 'Fixed at 1 month. The cover pays the outstanding balance if the borrower dies.';
+      const quote = calculatePremium({
+        product: selectedProduct,
+        insurer: insurerSelect.value,
+        age: Number(ageInput.value) || 35,
+        gender: genderSelect.value,
+        coverage: Number(coverageInput.value) || 100000,
+        duration: FIXED_DURATION
+      });
+
+      monthlyEl.textContent = quote.monthlyPremium.toLocaleString();
+      totalEl.textContent = quote.totalCost.toLocaleString();
+      coverageValueEl.textContent = quote.coverageValue.toLocaleString();
+    }
+
+    [productSelect, insurerSelect, ageInput, genderSelect, coverageInput].forEach(el => {
+      el.addEventListener('input', refreshQuote);
+      el.addEventListener('change', refreshQuote);
+    });
+
+    selectButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const insurer = button.dataset.insurer;
+        insurerSelect.value = insurer;
+        refreshQuote();
+      });
+    });
+
+    // Application flow: show summary modal then collect customer details
+    const applyButton = document.getElementById('applyButton');
+    const summaryModal = document.getElementById('summaryModal');
+    const closeSummary = document.getElementById('closeSummary');
+    const proceedPay = document.getElementById('proceedPay');
+
+    function openSummary() {
+      const quote = calculatePremium({
+        product: productSelect.value,
+        insurer: insurerSelect.value,
+        age: Number(ageInput.value) || 35,
+        gender: genderSelect.value,
+        coverage: Number(coverageInput.value) || 100000,
+        duration: FIXED_DURATION
+      });
+      document.getElementById('sumProduct').textContent = PRODUCT_LABELS[productSelect.value] || 'Loan Protection';
+      document.getElementById('sumInsurer').textContent = insurerSelect.options[insurerSelect.selectedIndex].text;
+      document.getElementById('sumCoverage').textContent = quote.coverageValue.toLocaleString();
+      document.getElementById('sumDuration').textContent = quote.duration;
+      document.getElementById('sumMonthly').textContent = quote.monthlyPremium.toLocaleString();
+      document.getElementById('sumTotal').textContent = quote.totalCost.toLocaleString();
+      summaryModal.classList.remove('hidden');
+      summaryModal.classList.add('flex');
+    }
+
+    function closeSummaryModal() {
+      summaryModal.classList.add('hidden');
+      summaryModal.classList.remove('flex');
+    }
+
+    applyButton.addEventListener('click', openSummary);
+    closeSummary.addEventListener('click', closeSummaryModal);
+
+    proceedPay.addEventListener('click', () => {
+      const quote = calculatePremium({
+        product: productSelect.value,
+        insurer: insurerSelect.value,
+        age: Number(ageInput.value) || 35,
+        gender: genderSelect.value,
+        coverage: Number(coverageInput.value) || 100000,
+        duration: FIXED_DURATION
+      });
+      const params = new URLSearchParams({
+        product: productSelect.value,
+        insurer: insurerSelect.value,
+        insuranceType: insurerSelect.options[insurerSelect.selectedIndex].text,
+        age: ageInput.value,
+        coverage: quote.coverageValue,
+        duration: FIXED_DURATION,
+        amount: quote.totalCost
+      });
+      window.location.href = `payment.html?${params.toString()}`;
+    });
+
+    function setInitialProduct() {
+      const params = new URLSearchParams(window.location.search);
+      const productParam = params.get('product');
+      productSelect.value = PRODUCT_LABELS[productParam] ? productParam : 'life';
+    }
+
+    setInitialProduct();
+    refreshQuote();
+  </script>
+</body>
+</html>

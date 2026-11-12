@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <title>Application Admin | MKCA</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { background: #f8fafc; color: #0f172a; }
+    .hidden { display: none !important; }
+    .admin-header { border-bottom: 1px solid #e2e8f0; background: #fff; }
+    .admin-header .container { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; }
+    main.container { padding: 2rem 1.5rem; }
+    #adminToolbar:not(.hidden) { display: flex; align-items: center; gap: 0.75rem; }
+    #loginPanel { max-width: 28rem; margin: 0 auto; padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff; box-shadow: 0 1px 3px #0f172a12; }
+    #loginForm { display: grid; gap: 1rem; }
+    #loginForm label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; }
+    #loginForm button { width: 100%; }
+    #notice { margin-bottom: 1.25rem; padding: 1rem; border-radius: 0.5rem; font-size: 0.875rem; }
+    #applicationsPanel:not(.hidden) { display: block; }
+    #applicationsPanel .overflow-x-auto { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff; box-shadow: 0 1px 3px #0f172a12; }
+    #applicationsPanel table { width: 100%; min-width: 1100px; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+    #applicationsPanel th { padding: 0.75rem 1rem; background: #f1f5f9; color: #475569; font-size: 0.75rem; text-transform: uppercase; }
+    #applicationsPanel td { padding: 0.75rem 1rem; border-top: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
+    #emptyState { margin-top: 1rem; padding: 2rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff; text-align: center; color: #475569; }
+    @media (max-width: 640px) {
+      .admin-header .container { align-items: flex-start; flex-direction: column; }
+      #adminToolbar:not(.hidden) { width: 100%; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900">
+  <header class="admin-header">
+    <div class="container mx-auto flex flex-wrap items-center justify-between gap-4 px-6 py-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">MKCA</p>
+        <h1 class="text-xl font-bold">Customer Applications</h1>
+      </div>
+      <div id="adminToolbar" class="hidden items-center gap-3">
+        <span id="adminName" class="text-sm text-slate-600"></span>
+        <button id="refreshApplications" type="button" class="btn btn-outline btn-sm" title="Refresh applications">Refresh</button>
+        <button id="logoutButton" type="button" class="btn btn-primary btn-sm">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-6 py-8">
+    <div id="notice" role="status" aria-live="polite" class="hidden mb-5 rounded-lg border p-4 text-sm"></div>
+
+    <section id="loginPanel" class="mx-auto max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 class="text-lg font-semibold">Admin sign in</h2>
+      <p class="mt-1 mb-5 text-sm text-slate-600">Sign in with your MKCA administrator account to review applications.</p>
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label for="username" class="mb-1 block text-sm font-medium">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required />
+        </div>
+        <div>
+          <label for="password" class="mb-1 block text-sm font-medium">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <button id="loginButton" type="submit" class="btn btn-primary w-full">Sign in</button>
+      </form>
+    </section>
+
+    <section id="applicationsPanel" class="hidden">
+      <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold">Applications</h2>
+          <p class="text-sm text-slate-600">Customer details and NRC documents are restricted to authorized staff.</p>
+        </div>
+        <p id="applicationCount" class="text-sm text-slate-600"></p>
+      </div>
+      <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+        <table class="min-w-[1100px] w-full border-collapse text-left text-sm">
+          <thead class="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+            <tr>
+              <th class="px-4 py-3">Reference</th>
+              <th class="px-4 py-3">Customer</th>
+              <th class="px-4 py-3">NRC number</th>
+              <th class="px-4 py-3">Contact</th>
+              <th class="px-4 py-3">Product</th>
+              <th class="px-4 py-3">Coverage</th>
+              <th class="px-4 py-3">Submitted</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3">NRC file</th>
+            </tr>
+          </thead>
+          <tbody id="applicationsBody" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+      <p id="emptyState" class="hidden rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-600">No applications have been submitted yet.</p>
+    </section>
+  </main>
+
+  <script>
+    const notice = document.getElementById('notice');
+    const loginPanel = document.getElementById('loginPanel');
+    const applicationsPanel = document.getElementById('applicationsPanel');
+    const adminToolbar = document.getElementById('adminToolbar');
+    const loginForm = document.getElementById('loginForm');
+    const applicationsBody = document.getElementById('applicationsBody');
+    const emptyState = document.getElementById('emptyState');
+    const allowedRoles = ['super_admin', 'administrator', 'insurance_officer', 'finance_officer'];
+
+    function showNotice(message, type = 'error') {
+      notice.textContent = message;
+      notice.className = 'mb-5 rounded-lg border p-4 text-sm';
+      notice.classList.add(type === 'success' ? 'border-emerald-200' : 'border-rose-200');
+      notice.classList.add(type === 'success' ? 'bg-emerald-50' : 'bg-rose-50');
+      notice.classList.add(type === 'success' ? 'text-emerald-800' : 'text-rose-800');
+      notice.classList.remove('hidden');
+    }
+
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, { credentials: 'same-origin', ...options });
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(`The admin API returned a non-JSON response (HTTP ${response.status}). Make sure this page is served by the MKCA application server and that /api routes are forwarded to it.`);
+      }
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'The request could not be completed.');
+      }
+      return result;
+    }
+
+    function addCell(row, value) {
+      const cell = document.createElement('td');
+      cell.className = 'px-4 py-3 align-top text-slate-700';
+      cell.textContent = value == null || value === '' ? '—' : String(value);
+      row.appendChild(cell);
+      return cell;
+    }
+
+    function formatMoney(value) {
+      const amount = Number(value);
+      return Number.isFinite(amount) ? `ZMW ${amount.toLocaleString()}` : '—';
+    }
+
+    function renderApplications(applications) {
+      applicationsBody.replaceChildren();
+      document.getElementById('applicationCount').textContent = `${applications.length} shown`;
+      emptyState.classList.toggle('hidden', applications.length > 0);
+
+      applications.forEach((application) => {
+        const row = document.createElement('tr');
+        addCell(row, application.applicationReference);
+        const customer = addCell(row, application.customerName);
+        if (application.companyName) {
+          const company = document.createElement('span');
+          company.className = 'mt-1 block text-xs text-slate-500';
+          company.textContent = application.companyName;
+          customer.appendChild(company);
+        }
+        addCell(row, application.customerId);
+        const contact = addCell(row, application.customerEmail);
+        const phone = document.createElement('span');
+        phone.className = 'mt-1 block text-xs text-slate-500';
+        phone.textContent = application.phoneNumber || '';
+        contact.appendChild(phone);
+        addCell(row, application.productType);
+        addCell(row, `${formatMoney(application.coverageAmount)} / ${application.durationMonths || 0} mo`);
+        const date = application.createdAt ? new Date(application.createdAt).toLocaleString() : '—';
+        addCell(row, date);
+        addCell(row, application.status);
+        const documentCell = addCell(row, '');
+        if (application.hasNrcDocument) {
+          const link = document.createElement('a');
+          link.href = `/api/admin/applications/${encodeURIComponent(application.applicationReference)}/nrc`;
+          link.textContent = 'Download';
+          link.className = 'font-semibold text-sky-800 underline underline-offset-2';
+          link.setAttribute('aria-label', `Download NRC for ${application.applicationReference}`);
+          documentCell.appendChild(link);
+        } else {
+          documentCell.textContent = 'Not uploaded';
+        }
+        applicationsBody.appendChild(row);
+      });
+    }
+
+    async function loadApplications() {
+      showNotice('Loading applications...', 'success');
+      const result = await requestJson('/api/admin/applications');
+      renderApplications(result.applications || []);
+      notice.classList.add('hidden');
+      applicationsPanel.classList.remove('hidden');
+      adminToolbar.classList.remove('hidden');
+      adminToolbar.classList.add('flex');
+      loginPanel.classList.add('hidden');
+    }
+
+    async function acceptUser(user) {
+      if (!allowedRoles.includes(user.role)) {
+        loginPanel.classList.remove('hidden');
+        showNotice('This account does not have permission to view applications.');
+        return;
+      }
+
+      document.getElementById('adminName').textContent = user.fullName || user.email;
+      await loadApplications();
+    }
+
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const button = document.getElementById('loginButton');
+      button.disabled = true;
+      notice.classList.add('hidden');
+      try {
+        const result = await requestJson('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('username').value.trim(),
+            password: document.getElementById('password').value
+          })
+        });
+        await acceptUser(result.user);
+      } catch (error) {
+        showNotice(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById('refreshApplications').addEventListener('click', () => {
+      loadApplications().catch((error) => showNotice(error.message));
+    });
+
+    document.getElementById('logoutButton').addEventListener('click', async () => {
+      try {
+        await requestJson('/api/auth/logout', { method: 'POST' });
+      } finally {
+        applicationsPanel.classList.add('hidden');
+        adminToolbar.classList.add('hidden');
+        adminToolbar.classList.remove('flex');
+        loginPanel.classList.remove('hidden');
+        loginForm.reset();
+        showNotice('You have signed out.', 'success');
+      }
+    });
+
+    requestJson('/api/auth/me')
+      .then((result) => acceptUser(result.user))
+      .catch(() => loginPanel.classList.remove('hidden'));
+  </script>
+</body>
+</html>

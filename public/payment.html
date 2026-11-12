@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <title>Create Payment Link | MKCA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-900">
+  <main class="container mx-auto px-6 py-12">
+    <div class="max-w-3xl mx-auto">
+      <div class="text-center mb-8">
+        <p class="text-xs uppercase tracking-[0.3em] text-sky-700 mb-3">Lipila Payment Link</p>
+        <h1 class="text-4xl font-bold text-slate-900">Create Payment Link</h1>
+      </div>
+
+      <div id="message" class="hidden rounded-2xl p-5 mb-6"></div>
+
+      <div class="bg-white rounded-3xl shadow-lg border border-slate-200 p-6 md:p-8">
+        <form id="linkForm" class="space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Link Type</label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="flex items-center gap-2 rounded-xl border border-slate-200 p-3 cursor-pointer bg-slate-50">
+                <input type="radio" name="linkType" value="static" checked />
+                <span class="font-medium">Static Link</span>
+              </label>
+              <label class="flex items-center gap-2 rounded-xl border border-slate-200 p-3 cursor-pointer bg-slate-50">
+                <input type="radio" name="linkType" value="dynamic" />
+                <span class="font-medium">Dynamic Link</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label for="name" class="block text-sm font-medium text-slate-700 mb-2">Name</label>
+            <input id="name" name="name" type="text" required placeholder="Please enter a name" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-sky-600 focus:outline-none" />
+          </div>
+
+          <div>
+            <label for="quantity" class="block text-sm font-medium text-slate-700 mb-2">Quantity</label>
+            <input id="quantity" name="quantity" type="number" min="1" required placeholder="Please enter quantity" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-sky-600 focus:outline-none" />
+          </div>
+
+          <div>
+            <label for="redirectUrl" class="block text-sm font-medium text-slate-700 mb-2">Redirect URL</label>
+            <input id="redirectUrl" name="redirectUrl" type="url" placeholder="https://example.com/thank-you" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-sky-600 focus:outline-none" />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label for="description" class="block text-sm font-medium text-slate-700">Description</label>
+              <span id="charCount" class="text-xs text-slate-500">0 / 100</span>
+            </div>
+            <textarea id="description" name="description" maxlength="100" rows="4" placeholder="Enter a short description" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-sky-600 focus:outline-none"></textarea>
+          </div>
+
+          <div>
+            <label for="productImage" class="block text-sm font-medium text-slate-700 mb-2">Product Image</label>
+            <div class="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 text-center">
+              <input id="productImage" name="productImage" type="file" accept="image/*" class="hidden" />
+              <label for="productImage" class="inline-flex cursor-pointer items-center justify-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
+                + Upload
+              </label>
+              <p id="imageName" class="mt-3 text-sm text-slate-500">Upload an image for the product</p>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full rounded-xl bg-sky-600 px-4 py-3 text-base font-semibold text-white hover:bg-sky-700 transition">Create Payment Link</button>
+        </form>
+      </div>
+
+      <div id="resultBox" class="hidden mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <h2 class="text-xl font-bold text-emerald-900 mb-3">Payment Link Ready</h2>
+        <p id="resultText" class="text-emerald-800 break-all"></p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('linkForm');
+    const descriptionField = document.getElementById('description');
+    const charCount = document.getElementById('charCount');
+    const imageInput = document.getElementById('productImage');
+    const imageName = document.getElementById('imageName');
+    const message = document.getElementById('message');
+    const resultBox = document.getElementById('resultBox');
+    const resultText = document.getElementById('resultText');
+
+    function showMessage(text, type = 'info') {
+      message.className = 'rounded-2xl p-5 mb-6';
+      message.classList.remove('hidden');
+      if (type === 'success') {
+        message.classList.add('bg-emerald-50', 'text-emerald-800');
+      } else if (type === 'error') {
+        message.classList.add('bg-red-50', 'text-red-800');
+      } else {
+        message.classList.add('bg-sky-50', 'text-sky-800');
+      }
+      message.textContent = text;
+    }
+
+    descriptionField.addEventListener('input', () => {
+      const length = descriptionField.value.length;
+      charCount.textContent = `${length} / 100`;
+    });
+
+    imageInput.addEventListener('change', () => {
+      if (imageInput.files && imageInput.files[0]) {
+        imageName.textContent = imageInput.files[0].name;
+      } else {
+        imageName.textContent = 'Upload an image for the product';
+      }
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      resultBox.classList.add('hidden');
+
+      const formData = new FormData(form);
+      const payload = {
+        linkType: formData.get('linkType') || 'static',
+        name: formData.get('name')?.trim(),
+        quantity: Number(formData.get('quantity')),
+        redirectUrl: formData.get('redirectUrl')?.trim(),
+        description: formData.get('description')?.trim() || ''
+      };
+
+      if (!payload.name) {
+        showMessage('Please enter a name.', 'error');
+        return;
+      }
+
+      if (!Number.isFinite(payload.quantity) || payload.quantity <= 0) {
+        showMessage('Please enter a valid quantity.', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/create-payment-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const json = await response.json();
+
+        if (!response.ok || !json.success) {
+          throw new Error(json.message || 'Unable to create payment link.');
+        }
+
+        resultText.textContent = json.data.paymentLink;
+        resultBox.classList.remove('hidden');
+        showMessage('Payment link created successfully.', 'success');
+      } catch (error) {
+        showMessage(error.message || 'Unable to create payment link.', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

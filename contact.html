@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <title>Contact Us | MKCA</title>
+  <meta name="description" content="Contact Mpangwe Kasonso Chartered Accountants for professional services and Easy Digital Insurance Platform (eDIP) support in Zambia." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-white text-slate-900 scroll-smooth">
+  <header class="site-header fixed inset-x-0 top-0 z-50 bg-white/95 border-b border-slate-200 backdrop-blur-xl">
+    <div class="container mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="flex items-center gap-3 font-semibold text-slate-900">
+        <img src="assets/logos/MKCA Modern Corporate Logo.png" alt="MKCA logo" class="h-11 w-11 rounded-xl object-cover ring-1 ring-slate-200 bg-white shadow-sm" />
+        <div>
+          <span class="block text-base">MKCA</span>
+          <span class="block text-xs text-slate-500">Mpangwe Kasonso Chartered Accountants</span>
+        </div>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-700">
+        <a href="index.html">Home</a>
+        <a href="about.html">About Us</a>
+        <a href="services.html">Our Services</a>
+        <a href="products.html">Insurance Solutions</a>
+        <a href="contact.html" class="btn btn-primary btn-sm">Contact Us</a>
+      </nav>
+      <button id="mobileMenuButton" class="md:hidden text-slate-800 focus:outline-none" aria-label="Open menu">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="mobileNav" class="mobile-nav fixed inset-0 z-40 hidden bg-slate-950/95 backdrop-blur-sm">
+    <div class="h-full w-full p-6 flex flex-col">
+      <div class="flex items-center justify-between mb-10">
+        <div class="flex items-center gap-3 text-white">
+          <div class="h-11 w-11 rounded-xl bg-white/10 flex items-center justify-center text-xl">e</div>
+          <div>
+            <p class="text-lg font-semibold">eDIP</p>
+            <p class="text-sm text-slate-300">Contact Us</p>
+          </div>
+        </div>
+        <button id="mobileCloseButton" class="text-slate-200 text-2xl">×</button>
+      </div>
+      <nav class="space-y-6 text-white text-lg flex-1">
+        <a href="index.html" class="block">Home</a>
+        <a href="products.html" class="block">Products</a>
+        <a href="quote-calculator.html" class="block">Calculator</a>
+        <a href="claims.html" class="block">Claims</a>
+      </nav>
+    </div>
+  </div>
+
+  <main class="pt-28">
+    <section class="bg-slate-50 py-20">
+      <div class="container mx-auto px-6 text-center">
+        <p class="text-sm uppercase tracking-[0.3em] text-sky-600 mb-4">Contact MKCA</p>
+        <h1 class="text-5xl font-bold text-slate-900 mb-6">Speak to our team today</h1>
+        <p class="text-xl text-slate-600 max-w-3xl mx-auto">Whether you need professional support or want to explore available insurance solutions through eDIP, we are ready to help.</p>
+      </div>
+    </section>
+
+    <section class="container mx-auto px-6 py-20">
+      <div class="grid gap-10 lg:grid-cols-2">
+        <div class="card">
+          <h2 class="text-3xl font-bold mb-6">Contact Form</h2>
+          <form class="space-y-5">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
+              <input type="text" placeholder="Your name" class="rounded-xl border border-slate-300 bg-white px-4 py-3 w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Email</label>
+              <input type="email" placeholder="you@example.com" class="rounded-xl border border-slate-300 bg-white px-4 py-3 w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">Phone Number</label>
+              <input type="text" placeholder="+260 123 456 789" class="rounded-xl border border-slate-300 bg-white px-4 py-3 w-full" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">How can we help?</label>
+              <textarea rows="5" placeholder="Share your enquiry" class="rounded-xl border border-slate-300 bg-white px-4 py-3 w-full"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary w-full">Send Message</button>
+          </form>
+        </div>
+
+        <div class="space-y-8">
+          <div class="card bg-slate-950 text-white">
+            <h2 class="text-3xl font-bold mb-4">Reach Us</h2>
+            <p class="text-slate-300 mb-6">Our team is available to support your quote, application, and claims questions.</p>
+            <div class="space-y-4 text-sm text-slate-300">
+              <div><strong>Address:</strong> 7th Floor Godfrey House, Kabelenga Road, Lusaka, Zambia</div>
+              <div><strong>Phone:</strong> <a href="tel:+260978981021" class="text-white underline">+260 978 981 021</a></div>
+              <div><strong>Email:</strong> <a href="mailto:mpangwe@mkcharteredaccountants.co" class="text-white underline">mpangwe@mkcharteredaccountants.co</a></div>
+              <div><strong>Email:</strong> <a href="mailto:mpangwe.kasonso@gmail.com" class="text-white underline">mpangwe.kasonso@gmail.com</a></div>
+              <div><strong>WhatsApp:</strong> <a href="https://wa.me/260978981021" class="text-white underline">+260 978 981 021</a></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="text-3xl font-bold mb-6">Office Location</h2>
+            <p class="text-slate-600 mb-6">Find us in Lusaka, with secure digital support for insurance applications and claim handling.</p>
+            <div class="aspect-[16/9] overflow-hidden rounded-3xl border border-slate-200">
+              <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d31716.860332225023!2d28.24651365577179!3d-15.418237233226707!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x1940879d1d7154af%3A0x74dc61c38a057eb1!2sLusaka!5e0!3m2!1sen!2szm!4v1700000000000!5m2!1sen!2szm" style="border:0;width:100%;height:100%;" allowfullscreen="" loading="lazy"></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-slate-950 text-slate-300">
+    <div class="container mx-auto px-6 py-12 text-center text-sm text-slate-500">Powered by Mpangwe Kasonso Chartered Accountants</div>
+  </footer>
+
+  <button id="backToTop" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-600 px-4 py-3 text-white shadow-xl shadow-slate-900/25">↑</button>
+  <script src="script.js"></script>
+</body>
+</html>

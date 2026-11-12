@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png">
+  <title>Application Submission | MKCA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="bg-white text-slate-900">
+  <main class="container mx-auto px-6 py-20">
+    <div class="max-w-2xl mx-auto">
+      <h1 class="text-3xl font-bold mb-6">Submit Your Application</h1>
+
+      <!-- Customer Information Form -->
+      <div id="customerInfoSection" class="rounded-2xl border p-6 mb-6 bg-slate-50">
+        <h2 class="text-xl font-bold mb-4">Customer Information</h2>
+        <p class="text-slate-600 mb-4">Provide your details to submit your application. MKCA will contact you about payment.</p>
+        <form id="customerInfoForm">
+          <div class="space-y-4">
+            <div>
+              <label for="customerType" class="block text-sm font-medium mb-1">Customer Type</label>
+              <select id="customerType" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" required>
+                <option value="">Select customer type</option>
+                <option value="individual">Individual</option>
+                <option value="company">Company</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="firstName" class="block text-sm font-medium mb-1">
+                  <span class="inline-flex items-center gap-1">First Name <span class="text-red-600 text-base font-bold">*</span></span>
+                </label>
+                <input type="text" id="firstName" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" required>
+              </div>
+              <div>
+                <label for="lastName" class="block text-sm font-medium mb-1">
+                  <span class="inline-flex items-center gap-1">Last Name <span class="text-red-600 text-base font-bold">*</span></span>
+                </label>
+                <input type="text" id="lastName" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" required>
+              </div>
+            </div>
+            <div id="companyNameField" class="hidden">
+              <label for="companyName" class="block text-sm font-medium mb-1">
+                <span class="inline-flex items-center gap-1">Company Name <span class="text-red-600 text-base font-bold">*</span></span>
+              </label>
+              <input type="text" id="companyName" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label for="customerId" class="block text-sm font-medium mb-1">
+                <span class="inline-flex items-center gap-1">NRC / ID Number <span class="text-red-600 text-base font-bold">*</span></span>
+              </label>
+              <input type="text" id="customerId" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="12345678/11/1" required>
+              <p class="mt-1 text-xs text-slate-500">Use the format: 12345678/11/1</p>
+            </div>
+            <div>
+              <label for="nrcDocument" class="block text-sm font-medium mb-1">Upload NRC <span class="text-red-600">*</span></label>
+              <input type="file" id="nrcDocument" accept="application/pdf,image/png,image/jpeg" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2" required>
+              <p class="mt-1 text-xs text-slate-500">PDF, PNG, or JPEG, up to 5 MB.</p>
+            </div>
+            <div>
+              <label for="email" class="block text-sm font-medium mb-1">
+                <span class="inline-flex items-center gap-1">Email Address <span class="text-red-600 text-base font-bold">*</span></span>
+              </label>
+              <input type="email" id="email" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" required>
+            </div>
+            <div>
+              <label for="phoneNumber" class="block text-sm font-medium mb-1">
+                <span class="inline-flex items-center gap-1">Phone Number <span class="text-red-600 text-base font-bold">*</span></span>
+              </label>
+              <input type="tel" id="phoneNumber" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="0977123456 or +260977123456" required>
+              <p class="mt-1 text-xs text-slate-500">Use a valid Airtel, MTN, or Zamtel number in Zambia.</p>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Payment Summary -->
+      <div id="paymentSummary" class="rounded-2xl border p-6 mb-6 bg-slate-50">
+        <h2 class="text-xl font-bold mb-4">Application Summary</h2>
+        <div class="space-y-2 text-slate-700">
+          <div><strong>Product:</strong> <span id="payProduct"></span></div>
+          <div><strong>Insurer:</strong> <span id="payInsurer"></span></div>
+          <div><strong>Coverage:</strong> ZMW <span id="payCoverage"></span></div>
+          <div><strong>Duration (months):</strong> <span id="payDuration"></span></div>
+          <div><strong>Quoted premium:</strong> ZMW <span id="payAmount" class="text-lg font-bold text-emerald-600"></span></div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-3 mb-4" id="paymentActions">
+        <button id="payNow" class="btn btn-primary flex-1">Submit Application</button>
+        <a href="quote-calculator.html" class="btn btn-outline">Back</a>
+      </div>
+
+      <!-- Application submission status -->
+      <div id="payResult" class="mt-6 hidden"></div>
+
+      <!-- Application confirmation -->
+      <div id="referenceDisplay" class="mt-6 hidden rounded-2xl border-2 border-emerald-500 p-6 bg-emerald-50">
+        <h3 class="text-lg font-bold text-emerald-900 mb-4">Application received</h3>
+        <div class="space-y-4">
+          <div class="bg-white rounded-lg p-4 border border-emerald-200">
+            <p class="text-sm text-slate-600 mb-1">Application reference</p>
+            <p id="applicationReference" class="text-2xl font-bold text-slate-900 font-mono"></p>
+            <p class="text-sm text-slate-600 mt-2">Keep this reference. The MKCA team will contact you with payment instructions.</p>
+          </div>
+          <a href="index.html" class="btn btn-primary w-full">Return to Home</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE_URLS = window.location.protocol === 'file:'
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+      : [window.location.origin, 'http://localhost:3000', 'http://127.0.0.1:3000'];
+
+    if (window.location.protocol === 'file:') {
+      const warningText = 'You are opening this page from file://. API calls will try localhost and 127.0.0.1 on port 3000.';
+      console.warn(warningText);
+    }
+
+    async function fetchApi(path, options) {
+      let lastError;
+      for (const baseUrl of API_BASE_URLS) {
+        const url = `${baseUrl}${path}`;
+        try {
+          const res = await fetch(url, options);
+          if (!res.ok) {
+            const body = await res.text();
+            throw new Error(`HTTP ${res.status}: ${body}`);
+          }
+          return await res.json();
+        } catch (err) {
+          lastError = err;
+          console.warn(`API request failed for ${url}:`, err);
+        }
+      }
+      throw lastError;
+    }
+
+    async function checkBackend() {
+      try {
+        await fetchApi('/api/health', { method: 'GET' });
+        return true;
+      } catch (err) {
+        console.warn('Backend health check failed:', err);
+        return false;
+      }
+    }
+
+    function showBackendWarning() {
+      const payNowButton = document.getElementById('payNow');
+      payNowButton.disabled = true;
+      const message = document.getElementById('message');
+      message.className = '';
+      message.classList.add('rounded-2xl', 'p-5', 'mb-6', 'bg-red-50', 'text-red-800');
+      message.textContent = 'Backend unreachable. Start the server with npm start and open the page through http://localhost:3000/payment.html?...';
+      message.classList.remove('hidden');
+    }
+
+    function readParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        product: params.get('product') || '',
+        insurer: params.get('insurer') || 'sanlam',
+        insurerName: params.get('insuranceType') || 'Sanlam Life Insurance',
+        age: params.get('age') || '35',
+        coverage: params.get('coverage') || '0',
+        duration: params.get('duration') || '0',
+        amount: params.get('amount') || '0'
+      };
+    }
+
+    const data = readParams();
+    document.getElementById('payProduct').textContent = data.product;
+    document.getElementById('payInsurer').textContent = data.insurerName || data.insurer;
+    document.getElementById('payCoverage').textContent = Number(data.coverage).toLocaleString();
+    document.getElementById('payDuration').textContent = data.duration;
+    document.getElementById('payAmount').textContent = Number(data.amount).toLocaleString();
+
+    const payNowButton = document.getElementById('payNow');
+    const payResult = document.getElementById('payResult');
+    const customerInfoForm = document.getElementById('customerInfoForm');
+    const referenceDisplay = document.getElementById('referenceDisplay');
+    const paymentActions = document.getElementById('paymentActions');
+    const customerTypeSelect = document.getElementById('customerType');
+    const companyNameField = document.getElementById('companyNameField');
+    const companyNameInput = document.getElementById('companyName');
+    const customerIdInput = document.getElementById('customerId');
+    const phoneInput = document.getElementById('phoneNumber');
+    const firstNameInput = document.getElementById('firstName');
+    const lastNameInput = document.getElementById('lastName');
+    const nrcDocumentInput = document.getElementById('nrcDocument');
+
+    function normalizePhoneNumber(value) {
+      const cleaned = String(value || '').replace(/[^0-9+]/g, '');
+      if (!cleaned) return '';
+      if (cleaned.startsWith('+260')) return cleaned;
+      if (cleaned.startsWith('260')) return `+${cleaned}`;
+      if (cleaned.startsWith('0')) return `+260${cleaned.slice(1)}`;
+      return `+260${cleaned}`;
+    }
+
+    function isValidZambianPhoneNumber(value) {
+      const normalized = normalizePhoneNumber(value);
+      return /^\+260(?:97|96|95|77|76|75|71|70|74|66|61|62|91|92)\d{7}$/.test(normalized);
+    }
+
+    function isValidNrcNumber(value) {
+      const cleaned = String(value || '').trim();
+      return /^\d{6,9}\/\d{2}\/\d{1,2}$/.test(cleaned);
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener('load', () => resolve(reader.result));
+        reader.addEventListener('error', () => reject(new Error('Unable to read the NRC file.')));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function formatPhoneOnBlur() {
+      const normalized = normalizePhoneNumber(phoneInput.value);
+      if (!normalized) return;
+      phoneInput.value = normalized;
+    }
+
+    customerTypeSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'company') {
+        companyNameField.classList.remove('hidden');
+        companyNameInput.required = true;
+      } else {
+        companyNameField.classList.add('hidden');
+        companyNameInput.required = false;
+        companyNameInput.value = '';
+      }
+    });
+
+    phoneInput.addEventListener('blur', formatPhoneOnBlur);
+
+    async function handlePaymentSuccess() {
+      if (!customerInfoForm.checkValidity()) {
+        alert('Please fill in all customer information fields');
+        customerInfoForm.reportValidity();
+        return;
+      }
+
+      const customerType = document.getElementById('customerType').value;
+      if (!customerType) {
+        alert('Please select customer type');
+        return;
+      }
+
+      if (!firstNameInput.value.trim()) {
+        alert('Please enter your first name');
+        firstNameInput.focus();
+        return;
+      }
+
+      if (!lastNameInput.value.trim()) {
+        alert('Please enter your last name');
+        lastNameInput.focus();
+        return;
+      }
+
+      if (customerType === 'company' && !companyNameInput.value.trim()) {
+        alert('Please enter company name');
+        companyNameInput.focus();
+        return;
+      }
+
+      const rawNrc = customerIdInput.value.trim();
+      if (!isValidNrcNumber(rawNrc)) {
+        alert('Please enter a valid NRC in the format 12345678/11/1');
+        customerIdInput.focus();
+        return;
+      }
+
+      const phoneValue = phoneInput.value.trim();
+      if (!isValidZambianPhoneNumber(phoneValue)) {
+        alert('Please enter a valid Zambian mobile number. Example: 0977123456 or +260977123456');
+        phoneInput.focus();
+        return;
+      }
+
+      const nrcFile = nrcDocumentInput.files && nrcDocumentInput.files[0];
+      if (!nrcFile) {
+        alert('Please upload your NRC.');
+        nrcDocumentInput.focus();
+        return;
+      }
+
+      const normalizedPhone = normalizePhoneNumber(phoneValue);
+      phoneInput.value = normalizedPhone;
+
+      payNowButton.disabled = true;
+      payResult.classList.remove('hidden');
+      payResult.className = 'mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-800';
+      payResult.textContent = 'Submitting your application...';
+
+      try {
+        const nrcDocumentData = await readFileAsDataUrl(nrcFile);
+        const productNames = {
+          life: 'Loan Protection',
+          salary: 'Salary Advance',
+          p2p: 'P2P Lending'
+        };
+        const applicationResponse = await fetchApi('/api/save-application', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerType,
+            customerName: `${firstNameInput.value.trim()} ${lastNameInput.value.trim()}`,
+            companyName: companyNameInput.value.trim(),
+            customerEmail: document.getElementById('email').value.trim(),
+            customerId: rawNrc,
+            phoneNumber: normalizedPhone,
+            productType: productNames[data.product] || 'Loan Protection',
+            insurerName: data.insurerName,
+            loanAmount: data.coverage,
+            coverageAmount: data.coverage,
+            premiumPaid: data.amount,
+            durationMonths: data.duration,
+            age: data.age,
+            nrcDocumentData
+          })
+        });
+
+        document.getElementById('applicationReference').textContent = applicationResponse.applicationReference;
+        document.getElementById('customerInfoSection').classList.add('hidden');
+        paymentActions.classList.add('hidden');
+        payResult.classList.add('hidden');
+        referenceDisplay.classList.remove('hidden');
+      } catch (error) {
+        payResult.className = 'mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800';
+        payResult.textContent = error.message || 'Unable to save your application. Please try again.';
+        payNowButton.disabled = false;
+      }
+    }
+
+    payNowButton.addEventListener('click', handlePaymentSuccess);
+  </script>
+</body>
+</html>

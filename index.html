@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <title>MKCA | Mpangwe Kasonso Chartered Accountants</title>
+  <meta name="description" content="MKCA is a professional firm offering advisory, financial, and digital service solutions, with eDIP as its digital insurance access platform." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-white text-slate-900 scroll-smooth">
+  <header class="site-header fixed inset-x-0 top-0 z-50 bg-white/95 border-b border-slate-200 backdrop-blur-xl">
+    <div class="container mx-auto flex items-center justify-between px-6 py-4">
+      <a href="index.html" class="flex items-center gap-3 font-semibold text-slate-900">
+        <img src="assets/logos/Bright Cyan MKCA Logo Letters.png" alt="MKCA logo" class="h-11 w-auto object-contain ring-1 ring-slate-200 bg-white shadow-sm rounded-md" />
+        <div>
+          <span class="block text-xs text-slate-500">Mpangwe Kasonso Chartered Accountants</span>
+        </div>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-700">
+        <a href="index.html">Home</a>
+        <a href="about.html">About Us</a>
+        <a href="services.html">Our Services</a>
+        <a href="products.html">Insurance Solutions</a>
+        <a href="contact.html" class="btn btn-primary btn-sm">Contact Us</a>
+      </nav>
+      <button id="mobileMenuButton" class="md:hidden text-slate-800 focus:outline-none" aria-label="Open menu">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="mobileNav" class="mobile-nav fixed inset-0 z-40 hidden bg-slate-950/95 backdrop-blur-sm">
+    <div class="h-full w-full p-6 flex flex-col">
+      <div class="flex items-center justify-between mb-10">
+        <div class="flex items-center gap-3 text-white">
+          <div class="h-11 w-11 rounded-xl bg-white/10 flex items-center justify-center text-xl font-semibold">M</div>
+          <div>
+            <p class="text-lg font-semibold">MKCA</p>
+            <p class="text-sm text-slate-300">Professional services • digital access</p>
+          </div>
+        </div>
+        <button id="mobileCloseButton" class="text-slate-200 text-2xl">×</button>
+      </div>
+      <nav class="space-y-6 text-white text-lg flex-1">
+        <a href="index.html" class="block">Home</a>
+        <a href="about.html" class="block">About Us</a>
+        <a href="services.html" class="block">Our Services</a>
+        <a href="products.html" class="block">Insurance Solutions</a>
+        <a href="contact.html" class="block">Contact</a>
+      </nav>
+    </div>
+  </div>
+
+  <main class="pt-28">
+    <section class="relative isolate flex min-h-[620px] items-center overflow-hidden bg-slate-950 text-white">
+      <img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=2000&q=85" alt="Modern professional office interior" class="absolute inset-0 h-full w-full object-cover object-center" />
+      <div class="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/70 to-sky-950/60"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(8,47,73,0.08),rgba(2,6,23,0.38))]"></div>
+      <div class="container mx-auto px-6 py-24 relative z-10">
+        <div class="max-w-4xl mx-auto text-center">
+          <span class="inline-flex rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-sky-100">Professional services. Digital access.</span>
+          <h1 class="mt-8 text-4xl md:text-6xl font-bold leading-tight">MKCA supports businesses and people with practical financial guidance.</h1>
+          <p class="mt-6 text-xl text-slate-200">We help clients with trusted advisory, compliance, and digital services that make everyday decisions easier and more certain.</p>
+          <div class="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="services.html" class="btn btn-primary btn-lg">Our Services</a>
+            <a href="contact.html" class="btn btn-outline btn-lg text-white border-white/30 hover:bg-white/10">Contact MKCA</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container mx-auto px-6 py-20" id="why-mkca">
+      <div class="text-center mb-12">
+        <p class="text-sm uppercase tracking-[0.3em] text-sky-700 mb-4">Why MKCA</p>
+        <h2 class="text-4xl lg:text-5xl font-bold text-slate-900">Practical solutions built around your goals.</h2>
+      </div>
+      <div class="grid gap-8 md:grid-cols-3">
+        <div class="card text-center">
+          <div class="mb-6 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
+            <span class="h-3 w-3 rounded-full bg-sky-700"></span>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Professional Guidance</h3>
+          <p class="text-slate-600">We provide structured financial and business support for clients who need clarity, accountability, and trusted advice.</p>
+        </div>
+        <div class="card text-center">
+          <div class="mb-6 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
+            <span class="h-3 w-3 rounded-full bg-sky-700"></span>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Operational Support</h3>
+          <p class="text-slate-600">Our team helps simplify processes, improve reporting, and strengthen decision-making across day-to-day operations.</p>
+        </div>
+        <div class="card text-center">
+          <div class="mb-6 mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-sky-100">
+            <span class="h-3 w-3 rounded-full bg-sky-700"></span>
+          </div>
+          <h3 class="text-xl font-semibold mb-3">Digital Access</h3>
+          <p class="text-slate-600">Through digital solutions such as eDIP, we make it easier for clients to access relevant services in a streamlined way.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="container mx-auto px-6 py-20" id="about">
+      <div class="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] items-center">
+        <div class="overflow-hidden rounded-[28px] shadow-[0_30px_80px_rgba(15,23,42,0.15)] border border-slate-200 bg-white">
+          <img src="https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=80" alt="Modern office building exterior" class="h-full w-full object-cover" />
+        </div>
+        <div>
+          <p class="text-sm uppercase tracking-[0.3em] text-sky-700 mb-4">MKCA presence</p>
+          <h2 class="text-4xl lg:text-5xl font-bold text-slate-900 mb-6">Support for the decisions in front of you.</h2>
+          <p class="text-lg text-slate-600 mb-6">Running a business or dealing with a financial question can get complicated. MKCA offers practical help with audit, tax, business advice, and access to insurance through eDIP.</p>
+          <ul class="space-y-4 text-slate-700">
+            <li class="flex items-start gap-3"><span class="mt-1 h-2.5 w-2.5 rounded-full bg-sky-700"></span><span>Help with audit, tax, and compliance.</span></li>
+            <li class="flex items-start gap-3"><span class="mt-1 h-2.5 w-2.5 rounded-full bg-sky-700"></span><span>Advice for everyday business decisions.</span></li>
+            <li class="flex items-start gap-3"><span class="mt-1 h-2.5 w-2.5 rounded-full bg-sky-700"></span><span>Online access to selected insurance services through eDIP.</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-slate-50 py-20" id="services">
+      <div class="container mx-auto px-6">
+        <div class="text-center mb-12">
+          <p class="text-sm uppercase tracking-[0.3em] text-sky-700 mb-4">Our Services</p>
+          <h2 class="text-4xl lg:text-5xl font-bold text-slate-900">A complete support framework for clients.</h2>
+        </div>
+        <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
+          <div class="card">
+            <div class="mb-4 text-sky-700 font-semibold">Audit & Assurance</div>
+            <h3 class="text-xl font-semibold mb-3">Financial Integrity</h3>
+            <p class="text-slate-600">Reliable review and reporting support to help businesses stay compliant and accountable.</p>
+          </div>
+          <div class="card">
+            <div class="mb-4 text-sky-700 font-semibold">Tax Advisory</div>
+            <h3 class="text-xl font-semibold mb-3">Tax Planning</h3>
+            <p class="text-slate-600">Clear guidance on compliance, planning, and decisions that affect long-term financial performance.</p>
+          </div>
+          <div class="card">
+            <div class="mb-4 text-sky-700 font-semibold">Business Support</div>
+            <h3 class="text-xl font-semibold mb-3">Operations</h3>
+            <p class="text-slate-600">Support for processes, systems, and reporting that keep daily operations running smoothly.</p>
+          </div>
+          <div class="card">
+            <div class="mb-4 text-sky-700 font-semibold">Arbitration</div>
+            <h3 class="text-xl font-semibold mb-3">Dispute Resolution</h3>
+            <p class="text-slate-600">Practical support in resolving commercial disputes with a fair, structured, and professional approach.</p>
+          </div>
+          <div class="card border-sky-200 bg-sky-50">
+            <div class="mb-4 text-sky-700 font-semibold">eDIP</div>
+            <h3 class="text-xl font-semibold mb-3">Digital Insurance Access</h3>
+            <p class="text-slate-600">As part of our digital offering, eDIP gives clients a straightforward way to access selected insurance services.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container mx-auto px-6 py-20">
+      <div class="max-w-5xl mx-auto">
+        <div class="mb-10 text-center">
+          <p class="text-sm uppercase tracking-[0.3em] text-sky-700 mb-4">How we work</p>
+          <h2 class="text-4xl font-bold text-slate-900">A disciplined process that keeps things moving.</h2>
+        </div>
+        <div class="grid gap-6 md:grid-cols-3">
+          <div class="card">
+            <h3 class="font-semibold text-slate-900 mb-2">Understand</h3>
+            <p class="text-slate-600">We begin by listening, reviewing your situation, and identifying the right approach.</p>
+          </div>
+          <div class="card">
+            <h3 class="font-semibold text-slate-900 mb-2">Plan</h3>
+            <p class="text-slate-600">We shape a clear strategy based on your goals, operational realities, and compliance needs.</p>
+          </div>
+          <div class="card">
+            <h3 class="font-semibold text-slate-900 mb-2">Deliver</h3>
+            <p class="text-slate-600">We execute with care, maintain accountability, and keep communication transparent throughout.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-gradient-to-r from-blue-950 via-[#0b3558] to-sky-950 text-white py-20">
+      <div class="container mx-auto px-6 text-center">
+        <h2 class="text-4xl lg:text-5xl font-bold mb-6">Let’s talk about what comes next.</h2>
+        <p class="text-xl text-sky-100 mb-8 max-w-2xl mx-auto">Whether you need professional support or a digital access channel, MKCA is ready to help.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href="services.html" class="btn btn-primary btn-lg">Explore Services</a>
+          <a href="contact.html" class="btn btn-outline btn-lg text-white border-white/30 hover:bg-white/10">Book a Consultation</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bg-slate-950 text-slate-300">
+    <div class="container mx-auto px-6 py-16">
+      <div class="grid gap-10 md:grid-cols-3">
+        <div>
+          <div class="mb-4 flex items-center gap-3">
+            <div class="h-11 w-11 rounded-xl bg-slate-800 flex items-center justify-center text-lg font-semibold text-white">M</div>
+            <div>
+              <p class="text-lg font-semibold text-white">MKCA</p>
+              <p class="text-sm text-slate-400">Mpangwe Kasonso Chartered Accountants</p>
+            </div>
+          </div>
+          <p class="max-w-md text-slate-400">MKCA leads the professional experience, while eDIP provides a digital insurance access channel for customers seeking streamlined support.</p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 md:col-span-2">
+          <div>
+            <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Quick Links</h4>
+            <ul class="mt-4 space-y-3 text-slate-300">
+              <li><a href="index.html" class="hover:text-white">Home</a></li>
+              <li><a href="about.html" class="hover:text-white">About Us</a></li>
+              <li><a href="services.html" class="hover:text-white">Our Services</a></li>
+              <li><a href="contact.html" class="hover:text-white">Contact</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Contact</h4>
+            <ul class="mt-4 space-y-3 text-slate-300">
+              <li><a href="mailto:mpangwe@mkcharteredaccountants.co" class="hover:text-white">mpangwe@mkcharteredaccountants.co</a></li>
+              <li><a href="mailto:mpangwe.kasonso@gmail.com" class="hover:text-white">mpangwe.kasonso@gmail.com</a></li>
+              <li><a href="tel:+260978981021" class="hover:text-white">+260 978 981 021</a></li>
+              <li>7th Floor Godfrey House, Kabelenga Road, Lusaka, Zambia</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="mt-12 border-t border-slate-800 pt-6 text-center text-sm text-slate-500">Powered by Mpangwe Kasonso Chartered Accountants</div>
+    </div>
+  </footer>
+
+  <button id="backToTop" class="fixed bottom-6 right-6 hidden rounded-full bg-sky-600 px-4 py-3 text-white shadow-xl shadow-slate-900/25">↑</button>
+  <script src="script.js"></script>
+</body>
+</html>

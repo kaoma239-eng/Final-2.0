@@ -1,0 +1,12 @@
+<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mkcaGrad" x1="18" y1="18" x2="162" y2="162" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#0F4C81"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="156" height="156" rx="28" fill="url(#mkcaGrad)"/>
+  <path d="M42 127V53H58L90 101L121 53H138V127H120V88L95 124H85L60 88V127H42Z" fill="white"/>
+  <path d="M90 42H105L133 127H114L106 108H89L81 127H62L90 42ZM94 84L88 98H105L94 84Z" fill="white" opacity="0.9"/>
+  <circle cx="144" cy="52" r="6" fill="#E0F2FE"/>
+</svg>
