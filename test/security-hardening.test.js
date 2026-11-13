@@ -132,7 +132,7 @@ test('security headers are configured', async () => {
   }
 });
 
-test('all pages use the branded SVG favicon and expose crawler rules', async () => {
+test('all pages use the Bright Cyan MKCA favicon and expose crawler rules', async () => {
   if (!app) {
     throw new Error('App was not exported');
   }
@@ -165,12 +165,13 @@ test('all pages use the branded SVG favicon and expose crawler rules', async () 
 
     for (const { path: pagePath, response } of pages) {
       assert.equal(response.status, 200, `${pagePath} should be served`);
-      assert.match(await response.text(), /<link rel="icon" type="image\/svg\+xml" href="\/assets\/logos\/mkca-logo\.svg"/);
+      assert.match(await response.text(), /<link rel="icon" type="image\/png" href="\/assets\/logos\/Bright%20Cyan%20MKCA%20Logo%20Letters\.png"/);
     }
 
-    const icon = await fetch(`http://127.0.0.1:${port}/assets/logos/mkca-logo.svg`);
+    const icon = await fetch(`http://127.0.0.1:${port}/assets/logos/Bright%20Cyan%20MKCA%20Logo%20Letters.png`);
     assert.equal(icon.status, 200);
-    assert.match(icon.headers.get('content-type'), /image\/svg\+xml/);
+    assert.match(icon.headers.get('content-type'), /image\/png/);
+    await icon.arrayBuffer();
 
     const robots = await fetch(`http://127.0.0.1:${port}/robots.txt`);
     assert.equal(robots.status, 200);
