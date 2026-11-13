@@ -76,7 +76,7 @@ test('admin dashboard and its assets are served', async () => {
     const dashboard = await fetch(`http://127.0.0.1:${port}/admin`);
     const dashboardHtml = await dashboard.text();
     assert.equal(dashboard.status, 200);
-    assert.match(dashboardHtml, /\/assets\/logos\/mkca-logo\.svg/);
+    assert.match(dashboardHtml, /\/assets\/logos\/Bright%20Cyan%20MKCA%20Logo%20Letters\.png/);
     assert.match(dashboardHtml, /\/admin-dashboard\.js/);
     assert.match(dashboardHtml, /Premiums recorded/);
 
@@ -85,9 +85,10 @@ test('admin dashboard and its assets are served', async () => {
     assert.match(script.headers.get('content-type'), /javascript/);
     assert.match(await script.text(), /\/api\/admin\/applications\/export\.csv/);
 
-    const logo = await fetch(`http://127.0.0.1:${port}/assets/logos/mkca-logo.svg`);
+    const logo = await fetch(`http://127.0.0.1:${port}/assets/logos/Bright%20Cyan%20MKCA%20Logo%20Letters.png`);
     assert.equal(logo.status, 200);
-    assert.match(logo.headers.get('content-type'), /image\/svg\+xml/);
+    assert.match(logo.headers.get('content-type'), /image\/png/);
+    await logo.arrayBuffer();
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -181,7 +182,7 @@ test('all pages use the Bright Cyan MKCA favicon and expose crawler rules', asyn
   }
 });
 
-test('contact page map targets Godfrey House in Lusaka', async () => {
+test('contact page map targets MKCA at Godfrey House in Lusaka', async () => {
   if (!app) {
     throw new Error('App was not exported');
   }
@@ -193,8 +194,8 @@ test('contact page map targets Godfrey House in Lusaka', async () => {
     const response = await fetch(`http://127.0.0.1:${port}/contact`);
     const html = await response.text();
     assert.equal(response.status, 200);
-    assert.match(html, /maps\?output=embed&amp;q=Godfrey%20House%2C%20Kabelenga%20Road%2C%20Lusaka%2C%20Zambia/);
-    assert.match(html, /title="Map to Godfrey House, Kabelenga Road, Lusaka, Zambia"/);
+    assert.match(html, /maps\?output=embed&amp;q=Mpangwe%20Kasonso%20Chartered%20Accountants&amp;z=17/);
+    assert.match(html, /title="Map to Mpangwe Kasonso Chartered Accountants at Godfrey House, Lusaka"/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
