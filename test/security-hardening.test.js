@@ -180,3 +180,22 @@ test('all pages use the Bright Cyan MKCA favicon and expose crawler rules', asyn
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('contact page map targets Godfrey House in Lusaka', async () => {
+  if (!app) {
+    throw new Error('App was not exported');
+  }
+
+  const server = app.listen(0);
+  const { port } = server.address();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/contact`);
+    const html = await response.text();
+    assert.equal(response.status, 200);
+    assert.match(html, /maps\?output=embed&amp;q=Godfrey%20House%2C%20Kabelenga%20Road%2C%20Lusaka%2C%20Zambia/);
+    assert.match(html, /title="Map to Godfrey House, Kabelenga Road, Lusaka, Zambia"/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
