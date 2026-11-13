@@ -171,7 +171,25 @@ test('all pages use the root MKCA favicon and expose crawler rules', async () =>
 
     for (const { path: pagePath, response } of pages) {
       assert.equal(response.status, 200, `${pagePath} should be served`);
-      assert.match(await response.text(), /<link rel="icon" type="image\/png" sizes="144x144" href="\/favicon\.png"/);
+      const html = await response.text();
+      assert.match(html, /<link rel="icon" type="image\/x-icon" href="\/favicon\.ico"/);
+      assert.match(html, /<link rel="icon" type="image\/png" sizes="144x144" href="\/favicon\.png"/);
+    }
+
+    const ico = await fetch(`http://127.0.0.1:${port}/favicon.ico`);
+    assert.equal(ico.status, 200);
+    assert.match(ico.headers.get('content-type'), /image\/x-icon/);
+    const icoBuffer = Buffer.from(await ico.arrayBuffer());
+    assert.equal(icoBuffer.readUInt16LE(0), 0);
+    assert.equal(icoBuffer.readUInt16LE(2), 1);
+    const frameCount = icoBuffer.readUInt16LE(4);
+    assert.ok(frameCount >= 3);
+    for (let index = 0; index < frameCount; index += 1) {
+      const entryOffset = 6 + index * 16;
+      const imageSize = icoBuffer.readUInt32LE(entryOffset + 8);
+      const imageOffset = icoBuffer.readUInt32LE(entryOffset + 12);
+      assert.equal(icoBuffer.toString('hex', imageOffset, imageOffset + 8), '89504e470d0a1a0a');
+      assert.ok(imageOffset + imageSize <= icoBuffer.length);
     }
 
     const icon = await fetch(`http://127.0.0.1:${port}/favicon.png`);

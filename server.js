@@ -382,6 +382,7 @@ const rootStaticFiles = new Set([
   'claims.html',
   'payment.html',
   'payment-success.html',
+  'favicon.ico',
   'favicon.png',
   'robots.txt',
   'sitemap.xml',
