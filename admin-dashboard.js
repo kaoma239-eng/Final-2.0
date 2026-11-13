@@ -5,8 +5,15 @@ const adminToolbar = document.getElementById('adminToolbar');
 const notice = document.getElementById('notice');
 const applicationsBody = document.getElementById('applicationsBody');
 const staffUsersBody = document.getElementById('staffUsersBody');
+const ADMIN_IDLE_TIMEOUT_MS = 30_000;
+const SESSION_HEARTBEAT_INTERVAL_MS = 10_000;
+const SESSION_HEARTBEAT_ACTIVITY_WINDOW_MS = 20_000;
 let currentPage = 1;
 let currentPageSize = 25;
+let idleTimeoutId = null;
+let heartbeatIntervalId = null;
+let lastUserActivityAt = 0;
+let logoutInProgress = false;
 
 function showNotice(message, type = 'error') {
   notice.textContent = message;
@@ -35,6 +42,65 @@ async function requestJson(url, options = {}) {
     throw error;
   }
   return result;
+}
+
+async function signOut(message = '') {
+  if (logoutInProgress) return;
+  logoutInProgress = true;
+  window.clearTimeout(idleTimeoutId);
+  window.clearInterval(heartbeatIntervalId);
+
+  let logoutError = null;
+  try {
+    await requestJson('/api/auth/logout', { method: 'POST' });
+  } catch (error) {
+    if (error.status !== 401) logoutError = error;
+  }
+
+  dashboardPanel.classList.add('hidden');
+  adminToolbar.classList.add('hidden');
+  loginPanel.classList.remove('hidden');
+  document.getElementById('loginForm').reset();
+  lastUserActivityAt = 0;
+  logoutInProgress = false;
+
+  if (logoutError) {
+    showNotice(`Could not confirm server sign-out. ${logoutError.message}`);
+  } else if (message) {
+    showNotice(message, 'success');
+  }
+}
+
+function resetIdleTimer() {
+  if (logoutInProgress || dashboardPanel.classList.contains('hidden')) return;
+
+  lastUserActivityAt = Date.now();
+  window.clearTimeout(idleTimeoutId);
+  idleTimeoutId = window.setTimeout(() => {
+    signOut('Signed out after 30 seconds of inactivity.');
+  }, ADMIN_IDLE_TIMEOUT_MS);
+}
+
+function startSessionHeartbeat() {
+  window.clearInterval(heartbeatIntervalId);
+  heartbeatIntervalId = window.setInterval(() => {
+    if (logoutInProgress || dashboardPanel.classList.contains('hidden')) return;
+
+    const idleDuration = Date.now() - lastUserActivityAt;
+    if (idleDuration >= ADMIN_IDLE_TIMEOUT_MS) {
+      signOut('Signed out after 30 seconds of inactivity.');
+      return;
+    }
+
+    if (idleDuration >= SESSION_HEARTBEAT_ACTIVITY_WINDOW_MS) return;
+    requestJson('/api/auth/heartbeat', { method: 'POST' }).catch((error) => {
+      if (error.status === 401) {
+        signOut('Your admin session expired. Please sign in again.');
+        return;
+      }
+      showNotice(`Unable to refresh your admin session. ${error.message}`);
+    });
+  }, SESSION_HEARTBEAT_INTERVAL_MS);
 }
 
 function formatMoney(value) {
@@ -199,6 +265,9 @@ async function acceptUser(user) {
   loginPanel.classList.add('hidden');
   dashboardPanel.classList.remove('hidden');
   adminToolbar.classList.remove('hidden');
+  lastUserActivityAt = Date.now();
+  resetIdleTimer();
+  startSessionHeartbeat();
 
   const staffPanel = document.getElementById('staffPanel');
   staffPanel.classList.toggle('hidden', user.role !== 'super_admin');
@@ -307,17 +376,22 @@ document.getElementById('staffForm').addEventListener('submit', async (event) =>
   }
 });
 
-document.getElementById('logoutButton').addEventListener('click', async () => {
-  try {
-    await requestJson('/api/auth/logout', { method: 'POST' });
-  } catch (error) {
-    showNotice(error.message);
-  }
+document.getElementById('logoutButton').addEventListener('click', () => {
+  signOut();
+});
 
-  dashboardPanel.classList.add('hidden');
-  adminToolbar.classList.add('hidden');
-  loginPanel.classList.remove('hidden');
-  document.getElementById('loginForm').reset();
+['pointerdown', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
+  document.addEventListener(eventName, resetIdleTimer, { passive: true });
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !dashboardPanel.classList.contains('hidden')) {
+    if (Date.now() - lastUserActivityAt >= ADMIN_IDLE_TIMEOUT_MS) {
+      signOut('Signed out after 30 seconds of inactivity.');
+      return;
+    }
+    resetIdleTimer();
+  }
 });
 
 requestJson('/api/auth/me')

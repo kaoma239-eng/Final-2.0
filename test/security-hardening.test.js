@@ -43,6 +43,11 @@ test('application records and NRC documents require an authorized session', asyn
   const { port } = server.address();
 
   try {
+    const heartbeatResponse = await fetch(`http://127.0.0.1:${port}/api/auth/heartbeat`, {
+      method: 'POST'
+    });
+    assert.equal(heartbeatResponse.status, 401, 'Session heartbeat should reject unauthenticated requests');
+
     for (const route of [
       '/api/admin/applications',
       '/api/admin/applications/export.csv',
@@ -133,7 +138,7 @@ test('security headers are configured', async () => {
   }
 });
 
-test('all pages use the Bright Cyan MKCA favicon and expose crawler rules', async () => {
+test('all pages use the root MKCA favicon and expose crawler rules', async () => {
   if (!app) {
     throw new Error('App was not exported');
   }
@@ -166,17 +171,25 @@ test('all pages use the Bright Cyan MKCA favicon and expose crawler rules', asyn
 
     for (const { path: pagePath, response } of pages) {
       assert.equal(response.status, 200, `${pagePath} should be served`);
-      assert.match(await response.text(), /<link rel="icon" type="image\/png" href="\/assets\/logos\/Bright%20Cyan%20MKCA%20Logo%20Letters\.png"/);
+      assert.match(await response.text(), /<link rel="icon" type="image\/png" sizes="144x144" href="\/favicon\.png"/);
     }
 
-    const icon = await fetch(`http://127.0.0.1:${port}/assets/logos/Bright%20Cyan%20MKCA%20Logo%20Letters.png`);
+    const icon = await fetch(`http://127.0.0.1:${port}/favicon.png`);
     assert.equal(icon.status, 200);
     assert.match(icon.headers.get('content-type'), /image\/png/);
-    await icon.arrayBuffer();
+    const iconBuffer = Buffer.from(await icon.arrayBuffer());
+    assert.equal(iconBuffer.readUInt32BE(16), 144);
+    assert.equal(iconBuffer.readUInt32BE(20), 144);
 
     const robots = await fetch(`http://127.0.0.1:${port}/robots.txt`);
     assert.equal(robots.status, 200);
-    assert.match(await robots.text(), /User-agent:\s*\*/);
+    const robotsText = await robots.text();
+    assert.match(robotsText, /User-agent:\s*Googlebot[\s\S]*?Allow:\s*\/?/);
+    assert.match(robotsText, /User-agent:\s*Googlebot-Image[\s\S]*?Allow:\s*\/?/);
+
+    const sitemap = await fetch(`http://127.0.0.1:${port}/sitemap.xml`);
+    assert.equal(sitemap.status, 200);
+    assert.match(await sitemap.text(), /https:\/\/mkcharteredaccountants\.co\//);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

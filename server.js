@@ -20,6 +20,8 @@ const PORT = Number(process.env.PORT || 3000);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'MKCA24';
+const applicationAdminRoles = ['super_admin', 'administrator', 'insurance_officer', 'claims_officer', 'finance_officer'];
+const ADMIN_SESSION_IDLE_TIMEOUT_MS = 30_000;
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || `${BASE_URL},http://localhost:${PORT},http://127.0.0.1:${PORT}`).split(',').map((value) => value.trim()).filter(Boolean);
 const certificatesDir = path.join(__dirname, 'certificates');
 const publicDir = path.join(__dirname, 'public');
@@ -335,6 +337,29 @@ app.use(session({
     maxAge: 60 * 60 * 1000
   }
 }));
+app.use('/api', (req, res, next) => {
+  const user = req.session && req.session.user;
+  if (!user || !applicationAdminRoles.includes(user.role) || req.path === '/auth/login') {
+    return next();
+  }
+
+  const now = Date.now();
+  const lastActivityAt = Number(req.session.adminLastActivityAt);
+  if (Number.isFinite(lastActivityAt) && lastActivityAt > 0 && now - lastActivityAt >= ADMIN_SESSION_IDLE_TIMEOUT_MS) {
+    return req.session.destroy((error) => {
+      if (error) {
+        console.error('Failed to expire inactive admin session:', error);
+        return res.status(500).json({ success: false, message: 'Unable to end the inactive admin session.' });
+      }
+
+      res.clearCookie('connect.sid');
+      return res.status(401).json({ success: false, message: 'Admin session expired due to inactivity.' });
+    });
+  }
+
+  req.session.adminLastActivityAt = now;
+  return next();
+});
 app.use('/api/', rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
@@ -357,6 +382,9 @@ const rootStaticFiles = new Set([
   'claims.html',
   'payment.html',
   'payment-success.html',
+  'favicon.png',
+  'robots.txt',
+  'sitemap.xml',
   'styles.css',
   'script.js',
   'premium-calculator.js',
@@ -476,6 +504,9 @@ app.post('/api/auth/login', async (req, res) => {
       fullName: user.full_name,
       role: user.role_name
     };
+    if (applicationAdminRoles.includes(user.role_name)) {
+      req.session.adminLastActivityAt = Date.now();
+    }
 
     return res.json({
       success: true,
@@ -517,6 +548,10 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   });
 });
 
+app.post('/api/auth/heartbeat', requireAuth, requireRole(applicationAdminRoles), (req, res) => {
+  return res.json({ success: true });
+});
+
 app.get('/api/admin/overview', requireAuth, requireRole(['super_admin', 'administrator', 'insurance_officer', 'claims_officer', 'finance_officer']), async (req, res) => {
   try {
     if (!dbAvailable) {
@@ -553,7 +588,6 @@ app.get('/api/admin/overview', requireAuth, requireRole(['super_admin', 'adminis
   }
 });
 
-const applicationAdminRoles = ['super_admin', 'administrator', 'insurance_officer', 'claims_officer', 'finance_officer'];
 const applicationStatuses = new Set(['draft', 'submitted', 'approved', 'rejected', 'paid']);
 const manageableStaffRoles = ['administrator', 'insurance_officer', 'claims_officer', 'finance_officer'];
 const visibleAdminRoles = ['super_admin', ...manageableStaffRoles];
