@@ -548,10 +548,6 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   });
 });
 
-app.post('/api/auth/heartbeat', requireAuth, requireRole(applicationAdminRoles), (req, res) => {
-  return res.json({ success: true });
-});
-
 app.get('/api/admin/overview', requireAuth, requireRole(['super_admin', 'administrator', 'insurance_officer', 'claims_officer', 'finance_officer']), async (req, res) => {
   try {
     if (!dbAvailable) {

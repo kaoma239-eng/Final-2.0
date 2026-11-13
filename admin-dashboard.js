@@ -93,7 +93,7 @@ function startSessionHeartbeat() {
     }
 
     if (idleDuration >= SESSION_HEARTBEAT_ACTIVITY_WINDOW_MS) return;
-    requestJson('/api/auth/heartbeat', { method: 'POST' }).catch((error) => {
+    requestJson('/api/auth/me').catch((error) => {
       if (error.status === 401) {
         signOut('Your admin session expired. Please sign in again.');
         return;

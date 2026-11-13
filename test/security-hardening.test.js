@@ -43,12 +43,8 @@ test('application records and NRC documents require an authorized session', asyn
   const { port } = server.address();
 
   try {
-    const heartbeatResponse = await fetch(`http://127.0.0.1:${port}/api/auth/heartbeat`, {
-      method: 'POST'
-    });
-    assert.equal(heartbeatResponse.status, 401, 'Session heartbeat should reject unauthenticated requests');
-
     for (const route of [
+      '/api/auth/me',
       '/api/admin/applications',
       '/api/admin/applications/export.csv',
       '/api/admin/applications/APP-TEST/nrc',
