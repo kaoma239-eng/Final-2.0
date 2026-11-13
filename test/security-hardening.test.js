@@ -43,10 +43,51 @@ test('application records and NRC documents require an authorized session', asyn
   const { port } = server.address();
 
   try {
-    for (const route of ['/api/admin/applications', '/api/admin/applications/APP-TEST/nrc']) {
+    for (const route of [
+      '/api/admin/applications',
+      '/api/admin/applications/export.csv',
+      '/api/admin/applications/APP-TEST/nrc',
+      '/api/admin/users'
+    ]) {
       const response = await fetch(`http://127.0.0.1:${port}${route}`);
       assert.equal(response.status, 401, `${route} should reject unauthenticated requests`);
     }
+
+    const createUserResponse = await fetch(`http://127.0.0.1:${port}/api/admin/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    assert.equal(createUserResponse.status, 401, 'Staff account creation should reject unauthenticated requests');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('admin dashboard and its assets are served', async () => {
+  if (!app) {
+    throw new Error('App was not exported');
+  }
+
+  const server = app.listen(0);
+  const { port } = server.address();
+
+  try {
+    const dashboard = await fetch(`http://127.0.0.1:${port}/admin`);
+    const dashboardHtml = await dashboard.text();
+    assert.equal(dashboard.status, 200);
+    assert.match(dashboardHtml, /\/assets\/logos\/mkca-logo\.svg/);
+    assert.match(dashboardHtml, /\/admin-dashboard\.js/);
+    assert.match(dashboardHtml, /Premiums recorded/);
+
+    const script = await fetch(`http://127.0.0.1:${port}/admin-dashboard.js`);
+    assert.equal(script.status, 200);
+    assert.match(script.headers.get('content-type'), /javascript/);
+    assert.match(await script.text(), /\/api\/admin\/applications\/export\.csv/);
+
+    const logo = await fetch(`http://127.0.0.1:${port}/assets/logos/mkca-logo.svg`);
+    assert.equal(logo.status, 200);
+    assert.match(logo.headers.get('content-type'), /image\/svg\+xml/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -91,7 +132,7 @@ test('security headers are configured', async () => {
   }
 });
 
-test('homepage links to a publicly served crawler-accessible favicon', async () => {
+test('all pages use the branded SVG favicon and expose crawler rules', async () => {
   if (!app) {
     throw new Error('App was not exported');
   }
@@ -100,14 +141,36 @@ test('homepage links to a publicly served crawler-accessible favicon', async () 
   const { port } = server.address();
 
   try {
-    const homepage = await fetch(`http://127.0.0.1:${port}/`);
-    const homepageHtml = await homepage.text();
-    assert.equal(homepage.status, 200);
-    assert.match(homepageHtml, /rel="icon"[^>]+href="\/favicon\.png"/);
+    const pagePaths = [
+      '/',
+      '/admin',
+      '/about',
+      '/services',
+      '/contact',
+      '/insurance',
+      '/insurance/products',
+      '/insurance/quote',
+      '/insurance/payment',
+      '/insurance/claims',
+      '/payment-success',
+      '/payment-failed',
+      '/payment-cancelled',
+      '/payment/callback',
+      '/payment.html'
+    ];
+    const pages = await Promise.all(pagePaths.map(async (pagePath) => ({
+      path: pagePath,
+      response: await fetch(`http://127.0.0.1:${port}${pagePath}`)
+    })));
 
-    const icon = await fetch(`http://127.0.0.1:${port}/favicon.png`);
+    for (const { path: pagePath, response } of pages) {
+      assert.equal(response.status, 200, `${pagePath} should be served`);
+      assert.match(await response.text(), /<link rel="icon" type="image\/svg\+xml" href="\/assets\/logos\/mkca-logo\.svg"/);
+    }
+
+    const icon = await fetch(`http://127.0.0.1:${port}/assets/logos/mkca-logo.svg`);
     assert.equal(icon.status, 200);
-    assert.match(icon.headers.get('content-type'), /image\/png/);
+    assert.match(icon.headers.get('content-type'), /image\/svg\+xml/);
 
     const robots = await fetch(`http://127.0.0.1:${port}/robots.txt`);
     assert.equal(robots.status, 200);

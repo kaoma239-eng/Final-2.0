@@ -360,7 +360,8 @@ const rootStaticFiles = new Set([
   'styles.css',
   'script.js',
   'premium-calculator.js',
-  'company-logos.js'
+  'company-logos.js',
+  'admin-dashboard.js'
 ]);
 
 app.get('/', (req, res) => {
@@ -445,7 +446,7 @@ app.post('/api/auth/login', async (req, res) => {
     const email = loginIdentifier.toLowerCase() === ADMIN_USERNAME.toLowerCase()
       ? adminEmail
       : loginIdentifier.toLowerCase();
-    const password = sanitizeText(req.body.password || '');
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
 
     if (!loginIdentifier || !password) {
       return res.status(400).json({ success: false, message: 'Username/email and password are required.' });
@@ -528,6 +529,9 @@ app.get('/api/admin/overview', requireAuth, requireRole(['super_admin', 'adminis
       const [policyCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM policies');
       const [paymentCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM payments');
       const [claimCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM claims');
+      const [purchaseSummaryRows] = await connection.execute(
+        'SELECT COUNT(*) AS total, COALESCE(SUM(premium_paid), 0) AS premiums FROM purchase_records'
+      );
 
       return res.json({
         success: true,
@@ -535,7 +539,9 @@ app.get('/api/admin/overview', requireAuth, requireRole(['super_admin', 'adminis
           applications: Number(applicationCountRows[0]?.total || 0),
           policies: Number(policyCountRows[0]?.total || 0),
           payments: Number(paymentCountRows[0]?.total || 0),
-          claims: Number(claimCountRows[0]?.total || 0)
+          claims: Number(claimCountRows[0]?.total || 0),
+          purchaseRecords: Number(purchaseSummaryRows[0]?.total || 0),
+          recordedPremiums: Number(purchaseSummaryRows[0]?.premiums || 0)
         }
       });
     } finally {
@@ -547,58 +553,369 @@ app.get('/api/admin/overview', requireAuth, requireRole(['super_admin', 'adminis
   }
 });
 
-const applicationAdminRoles = ['super_admin', 'administrator', 'insurance_officer', 'finance_officer'];
+const applicationAdminRoles = ['super_admin', 'administrator', 'insurance_officer', 'claims_officer', 'finance_officer'];
+const applicationStatuses = new Set(['draft', 'submitted', 'approved', 'rejected', 'paid']);
+const manageableStaffRoles = ['administrator', 'insurance_officer', 'claims_officer', 'finance_officer'];
+const visibleAdminRoles = ['super_admin', ...manageableStaffRoles];
+
+function isValidIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function parseApplicationFilters(query) {
+  const search = typeof query.search === 'string' ? query.search.trim().slice(0, 100) : '';
+  const status = typeof query.status === 'string' ? query.status.trim() : '';
+  const from = typeof query.from === 'string' ? query.from.trim() : '';
+  const to = typeof query.to === 'string' ? query.to.trim() : '';
+
+  if (status && status !== 'all' && !applicationStatuses.has(status)) {
+    return { error: 'Invalid application status.' };
+  }
+  if ((from && !isValidIsoDate(from)) || (to && !isValidIsoDate(to))) {
+    return { error: 'Dates must be valid calendar dates in YYYY-MM-DD format.' };
+  }
+  if (from && to && from > to) {
+    return { error: 'The start date must be before or equal to the end date.' };
+  }
+
+  return {
+    filters: {
+      search,
+      status: status === 'all' ? '' : status,
+      from,
+      to
+    }
+  };
+}
+
+function buildApplicationWhere(filters) {
+  const conditions = [];
+  const values = [];
+
+  if (filters.status) {
+    conditions.push('status = ?');
+    values.push(filters.status);
+  }
+  if (filters.search) {
+    const pattern = `%${filters.search}%`;
+    conditions.push('(application_reference LIKE ? OR customer_name LIKE ? OR customer_email LIKE ? OR phone_number LIKE ? OR nrc_number LIKE ?)');
+    values.push(pattern, pattern, pattern, pattern, pattern);
+  }
+  if (filters.from) {
+    conditions.push('created_at >= ?');
+    values.push(filters.from);
+  }
+  if (filters.to) {
+    conditions.push('created_at < DATE_ADD(?, INTERVAL 1 DAY)');
+    values.push(filters.to);
+  }
+
+  return {
+    sql: conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '',
+    values
+  };
+}
+
+function mapApplicationRow(row) {
+  return {
+    applicationReference: row.application_reference,
+    customerName: row.customer_name,
+    customerEmail: row.customer_email,
+    phoneNumber: row.phone_number,
+    customerId: row.nrc_number,
+    customerType: row.customer_type,
+    companyName: row.company_name,
+    productType: row.product_type,
+    insurerName: row.insurer_name,
+    loanAmount: Number(row.loan_amount),
+    coverageAmount: Number(row.coverage_amount),
+    premiumAmount: Number(row.premium_amount),
+    durationMonths: Number(row.duration_months),
+    ageAtApplication: Number(row.age_at_application),
+    nrcUploaded: Boolean(row.nrc_uploaded),
+    hasNrcDocument: Boolean(row.document_path),
+    status: row.status,
+    createdAt: row.created_at
+  };
+}
+
+function filterLocalApplications(records, filters) {
+  const search = filters.search.toLowerCase();
+  return records.filter((record) => {
+    if (filters.status && record.status !== filters.status) return false;
+
+    if (search) {
+      const searchable = [
+        record.applicationReference,
+        record.customerName,
+        record.customerEmail,
+        record.phoneNumber,
+        record.customerId || record.nrcNumber
+      ].join(' ').toLowerCase();
+      if (!searchable.includes(search)) return false;
+    }
+
+    const createdDate = String(record.createdAt || '').slice(0, 10);
+    if (filters.from && createdDate < filters.from) return false;
+    if (filters.to && createdDate > filters.to) return false;
+    return true;
+  }).sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+}
+
+async function getAdminApplications(filters, pagination = null) {
+  if (dbAvailable) {
+    const connection = await pool.getConnection();
+    try {
+      const where = buildApplicationWhere(filters);
+      const [countRows] = await connection.execute(
+        `SELECT COUNT(*) AS total FROM loan_applications${where.sql}`,
+        where.values
+      );
+      const total = Number(countRows[0]?.total || 0);
+      const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize));
+      const page = Math.min(pagination.page, totalPages);
+      const offset = (page - 1) * pagination.pageSize;
+      const [rows] = await connection.execute(
+        `SELECT application_reference, customer_name, customer_email, phone_number, nrc_number,
+                customer_type, company_name, product_type, insurer_name, loan_amount, coverage_amount,
+                premium_amount, duration_months, age_at_application, nrc_uploaded, document_path, status, created_at
+         FROM loan_applications${where.sql}
+         ORDER BY created_at DESC, application_reference DESC
+         LIMIT ? OFFSET ?`,
+        [...where.values, pagination.pageSize, offset]
+      );
+
+      return {
+        applications: rows.map(mapApplicationRow),
+        total,
+        page,
+        pageSize: pagination.pageSize,
+        totalPages
+      };
+    } finally {
+      connection.release();
+    }
+  }
+
+  const records = filterLocalApplications(await loadJsonFile(loanApplicationsPath, []), filters);
+  const total = records.length;
+  const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize));
+  const page = Math.min(pagination.page, totalPages);
+  const start = (page - 1) * pagination.pageSize;
+  const applications = records.slice(start, start + pagination.pageSize).map((record) => {
+    const { documentPath, ...visibleRecord } = record;
+    return { ...visibleRecord, hasNrcDocument: Boolean(documentPath) };
+  });
+
+  return { applications, total, page, pageSize: pagination.pageSize, totalPages };
+}
+
+async function getAllAdminApplications(filters) {
+  if (dbAvailable) {
+    const where = buildApplicationWhere(filters);
+    const [rows] = await pool.execute(
+      `SELECT application_reference, customer_name, customer_email, phone_number, nrc_number,
+              customer_type, company_name, product_type, insurer_name, loan_amount, coverage_amount,
+              premium_amount, duration_months, age_at_application, nrc_uploaded, document_path, status, created_at
+       FROM loan_applications${where.sql}
+       ORDER BY created_at DESC, application_reference DESC`,
+      where.values
+    );
+    return rows.map(mapApplicationRow);
+  }
+
+  return filterLocalApplications(await loadJsonFile(loanApplicationsPath, []), filters).map((record) => {
+    const { documentPath, ...visibleRecord } = record;
+    return { ...visibleRecord, hasNrcDocument: Boolean(documentPath) };
+  });
+}
+
+function csvCell(value) {
+  const text = value == null ? '' : String(value);
+  const safeText = /^[\s\u0000-\u001f]*[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
+}
+
+app.get('/api/admin/users', requireAuth, requireRole(['super_admin']), async (req, res) => {
+  try {
+    if (!dbAvailable) {
+      return res.status(503).json({ success: false, message: 'Database unavailable.' });
+    }
+
+    const rolePlaceholders = visibleAdminRoles.map(() => '?').join(', ');
+    const [rows] = await pool.execute(
+      `SELECT u.id, u.full_name, u.email, u.phone, r.name AS role, u.created_at
+       FROM users u
+       INNER JOIN roles r ON r.id = u.role_id
+       WHERE r.name IN (${rolePlaceholders})
+       ORDER BY u.created_at DESC, u.id DESC`,
+      visibleAdminRoles
+    );
+
+    return res.json({
+      success: true,
+      users: rows.map((row) => ({
+        id: row.id,
+        fullName: row.full_name,
+        email: row.email,
+        phone: row.phone,
+        role: row.role,
+        createdAt: row.created_at
+      }))
+    });
+  } catch (error) {
+    console.error('Admin users error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to load staff accounts.' });
+  }
+});
+
+app.post('/api/admin/users', requireAuth, requireRole(['super_admin']), async (req, res) => {
+  if (!dbAvailable) {
+    return res.status(503).json({ success: false, message: 'Database unavailable.' });
+  }
+
+  const fullName = sanitizeText(req.body?.fullName).slice(0, 128);
+  const email = sanitizeText(req.body?.email).toLowerCase().slice(0, 150);
+  const phone = sanitizeText(req.body?.phone).slice(0, 32);
+  const nrcPassport = sanitizeText(req.body?.nrcPassport).slice(0, 64);
+  const dateOfBirth = sanitizeText(req.body?.dateOfBirth);
+  const address = sanitizeText(req.body?.address).slice(0, 255);
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const role = sanitizeText(req.body?.role);
+
+  if (!fullName || !email || !phone || !nrcPassport || !dateOfBirth || !address || !password || !role) {
+    return res.status(400).json({ success: false, message: 'Complete all required staff account fields.' });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
+  }
+  if (!isValidIsoDate(dateOfBirth)) {
+    return res.status(400).json({ success: false, message: 'Enter a valid date of birth.' });
+  }
+  if (password.length < 12) {
+    return res.status(400).json({ success: false, message: 'Staff passwords must be at least 12 characters.' });
+  }
+  if (!manageableStaffRoles.includes(role)) {
+    return res.status(400).json({ success: false, message: 'Select a permitted staff role.' });
+  }
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    const [roleRows] = await connection.execute('SELECT id FROM roles WHERE name = ? LIMIT 1', [role]);
+    if (!roleRows[0]) {
+      return res.status(400).json({ success: false, message: 'The selected role is not available.' });
+    }
+
+    const passwordHash = await argon2.hash(password);
+    const [result] = await connection.execute(
+      `INSERT INTO users (role_id, business_id, full_name, email, phone, nrc_passport, date_of_birth, address,
+                          password_hash, profile_type, is_email_verified)
+       VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, 'individual', 0)`,
+      [roleRows[0].id, fullName, email, phone, nrcPassport, dateOfBirth, address, passwordHash]
+    );
+
+    return res.status(201).json({
+      success: true,
+      user: {
+        id: result.insertId,
+        fullName,
+        email,
+        phone,
+        role
+      },
+      message: 'Staff account created. The user can sign in with their email and the password you set.'
+    });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'An account with that email already exists.' });
+    }
+    console.error('Admin user creation error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to create the staff account.' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
 
 app.get('/api/admin/applications', requireAuth, requireRole(applicationAdminRoles), async (req, res) => {
   try {
-    let applications;
-    if (dbAvailable) {
-      const connection = await pool.getConnection();
-      try {
-        const [rows] = await connection.execute(
-          `SELECT application_reference, customer_name, customer_email, phone_number, nrc_number,
-                  customer_type, company_name, product_type, insurer_name, loan_amount, coverage_amount,
-                  premium_amount, duration_months, age_at_application, nrc_uploaded, document_path, status, created_at
-           FROM loan_applications ORDER BY created_at DESC LIMIT 200`
-        );
-        applications = rows.map((row) => ({
-          applicationReference: row.application_reference,
-          customerName: row.customer_name,
-          customerEmail: row.customer_email,
-          phoneNumber: row.phone_number,
-          customerId: row.nrc_number,
-          customerType: row.customer_type,
-          companyName: row.company_name,
-          productType: row.product_type,
-          insurerName: row.insurer_name,
-          loanAmount: Number(row.loan_amount),
-          coverageAmount: Number(row.coverage_amount),
-          premiumAmount: Number(row.premium_amount),
-          durationMonths: Number(row.duration_months),
-          ageAtApplication: Number(row.age_at_application),
-          nrcUploaded: Boolean(row.nrc_uploaded),
-          hasNrcDocument: Boolean(row.document_path),
-          status: row.status,
-          createdAt: row.created_at
-        }));
-      } finally {
-        connection.release();
-      }
-    } else {
-      const records = await loadJsonFile(loanApplicationsPath, []);
-      applications = records
-        .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
-        .slice(0, 200)
-        .map(({ documentPath, ...record }) => ({
-          ...record,
-          hasNrcDocument: Boolean(documentPath)
-        }));
+    const parsed = parseApplicationFilters(req.query);
+    if (parsed.error) {
+      return res.status(400).json({ success: false, message: parsed.error });
     }
+    const requestedPage = Number.parseInt(req.query.page, 10);
+    const requestedPageSize = Number.parseInt(req.query.pageSize, 10);
+    const pagination = {
+      page: Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1,
+      pageSize: Number.isInteger(requestedPageSize) && requestedPageSize > 0
+        ? Math.min(requestedPageSize, 100)
+        : 25
+    };
+    const result = await getAdminApplications(parsed.filters, pagination);
 
-    return res.json({ success: true, applications });
+    return res.json({ success: true, ...result });
   } catch (error) {
     console.error('Admin applications error:', error);
     return res.status(500).json({ success: false, message: 'Unable to load applications.' });
+  }
+});
+
+app.get('/api/admin/applications/export.csv', requireAuth, requireRole(applicationAdminRoles), async (req, res) => {
+  try {
+    const parsed = parseApplicationFilters(req.query);
+    if (parsed.error) {
+      return res.status(400).json({ success: false, message: parsed.error });
+    }
+    const applications = await getAllAdminApplications(parsed.filters);
+    const headers = [
+      'Reference',
+      'Customer type',
+      'Customer name',
+      'Company name',
+      'Email',
+      'Phone',
+      'NRC number',
+      'Product',
+      'Insurer',
+      'Loan amount (ZMW)',
+      'Coverage amount (ZMW)',
+      'Premium (ZMW)',
+      'Duration (months)',
+      'Age at application',
+      'Status',
+      'Submitted',
+      'NRC uploaded'
+    ];
+    const rows = applications.map((application) => [
+      application.applicationReference,
+      application.customerType,
+      application.customerName,
+      application.companyName,
+      application.customerEmail,
+      application.phoneNumber,
+      application.customerId,
+      application.productType,
+      application.insurerName,
+      application.loanAmount,
+      application.coverageAmount,
+      application.premiumAmount,
+      application.durationMonths,
+      application.ageAtApplication,
+      application.status,
+      application.createdAt,
+      application.hasNrcDocument ? 'Yes' : 'No'
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="mkca-applications-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(`\uFEFF${csv}`);
+  } catch (error) {
+    console.error('Admin applications export error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to export applications.' });
   }
 });
 

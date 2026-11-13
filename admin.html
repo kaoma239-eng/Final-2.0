@@ -1,250 +1,329 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
-  <title>Application Admin | MKCA</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MKCA Admin Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logos/mkca-logo.svg">
+  <link rel="stylesheet" href="/styles.css">
   <style>
-    body { background: #f8fafc; color: #0f172a; }
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #667085;
+      --border: #e3e7ef;
+      --surface: #fff;
+      --background: #fff;
+      --primary: #0F4C81;
+      --primary-dark: #0A2540;
+      --danger: #b42318;
+      --success: #067647;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--background); color: var(--ink); font-family: Arial, sans-serif; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
     .hidden { display: none !important; }
-    .admin-header { border-bottom: 1px solid #e2e8f0; background: #fff; }
-    .admin-header .container { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; }
-    main.container { padding: 2rem 1.5rem; }
-    #adminToolbar:not(.hidden) { display: flex; align-items: center; gap: 0.75rem; }
-    #loginPanel { max-width: 28rem; margin: 0 auto; padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff; box-shadow: 0 1px 3px #0f172a12; }
-    #loginForm { display: grid; gap: 1rem; }
-    #loginForm label { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; font-weight: 500; }
-    #loginForm button { width: 100%; }
-    #notice { margin-bottom: 1.25rem; padding: 1rem; border-radius: 0.5rem; font-size: 0.875rem; }
-    #applicationsPanel:not(.hidden) { display: block; }
-    #applicationsPanel .overflow-x-auto { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff; box-shadow: 0 1px 3px #0f172a12; }
-    #applicationsPanel table { width: 100%; min-width: 1100px; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
-    #applicationsPanel th { padding: 0.75rem 1rem; background: #f1f5f9; color: #475569; font-size: 0.75rem; text-transform: uppercase; }
-    #applicationsPanel td { padding: 0.75rem 1rem; border-top: 1px solid #e2e8f0; color: #334155; vertical-align: top; }
-    #emptyState { margin-top: 1rem; padding: 2rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #fff; text-align: center; color: #475569; }
+    .page-width { width: min(1500px, calc(100% - 32px)); margin: 0 auto; }
+    .admin-header { background: var(--surface); border-bottom: 1px solid var(--border); }
+    .header-content { min-height: 82px; display: flex; align-items: center; gap: 18px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--primary); text-decoration: none; font-weight: 800; font-size: 19px; }
+    .brand img { width: 48px; height: 48px; object-fit: contain; }
+    .brand-title { border-left: 1px solid var(--border); padding-left: 18px; }
+    .brand-title p { margin: 0 0 3px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
+    .brand-title h1 { margin: 0; font-size: 21px; }
+    .header-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    .admin-name { color: var(--muted); font-size: 14px; }
+    main { padding: 28px 0 56px; }
+    .notice { margin: 0 0 18px; padding: 12px 14px; border-radius: 8px; }
+    .notice-error { background: #fef3f2; color: var(--danger); }
+    .notice-success { background: #ecfdf3; color: var(--success); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 2px 6px rgba(16, 24, 40, .04); }
+    .login-card { width: min(440px, 100%); margin: 54px auto; padding: 28px; }
+    .login-card h2, .section-heading h2 { margin: 0 0 8px; }
+    .muted, .help-text { color: var(--muted); }
+    .form-field { display: grid; gap: 6px; margin: 16px 0; }
+    .form-field label { font-size: 13px; font-weight: 700; }
+    .form-field input, .form-field select, .filter-control input, .filter-control select {
+      width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid #cbd2df; border-radius: 7px; background: #fff; color: var(--ink);
+    }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 8px 13px; border: 1px solid transparent; border-radius: 7px; font-weight: 700; text-decoration: none; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: #fff; border-color: #cbd2df; color: var(--ink); }
+    .btn-danger { background: #fff; border-color: #f2b8b5; color: var(--danger); }
+    .btn-block { width: 100%; }
+    .section { margin-top: 24px; padding: 22px; }
+    .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .section-heading p { margin: 0; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .metric-card { padding: 18px; }
+    .metric-label { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+    .metric-value { margin: 0; font-size: clamp(22px, 2.3vw, 30px); font-weight: 800; overflow-wrap: anywhere; }
+    .metric-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    .filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(110px, 1fr)) auto auto; align-items: end; gap: 10px; margin: 18px 0; }
+    .filter-control { display: grid; gap: 5px; }
+    .filter-control label { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    .applications-table { min-width: 1420px; }
+    .staff-table { min-width: 720px; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+    th { background: #f8f9fc; color: #475467; font-size: 11px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .subtext { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .status-badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #f2f4f7; color: #475467; text-transform: capitalize; white-space: nowrap; }
+    .status-approved, .status-paid { background: #ecfdf3; color: #067647; }
+    .status-submitted { background: #eff8ff; color: #175cd3; }
+    .status-rejected { background: #fef3f2; color: #b42318; }
+    .text-link { color: #175cd3; font-weight: 700; }
+    .table-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+    .pagination { display: flex; align-items: center; gap: 8px; }
+    .empty-state { padding: 24px; color: var(--muted); text-align: center; }
+    .staff-layout { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.5fr); gap: 24px; }
+    .staff-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+    .staff-form .form-field { margin: 8px 0; }
+    .staff-form .span-two { grid-column: 1 / -1; }
+    @media (max-width: 1000px) {
+      .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .staff-layout { grid-template-columns: 1fr; }
+    }
     @media (max-width: 640px) {
-      .admin-header .container { align-items: flex-start; flex-direction: column; }
-      #adminToolbar:not(.hidden) { width: 100%; flex-wrap: wrap; }
+      .page-width { width: min(100% - 20px, 1500px); }
+      .header-content { min-height: 70px; gap: 10px; }
+      .brand img { width: 40px; height: 40px; }
+      .brand span { display: none; }
+      .brand-title { padding-left: 10px; }
+      .brand-title h1 { font-size: 17px; }
+      .header-actions { gap: 6px; }
+      .admin-name { display: none; }
+      main { padding-top: 18px; }
+      .section { padding: 15px; }
+      .section-heading { align-items: stretch; flex-direction: column; }
+      .metrics-grid { gap: 9px; }
+      .metric-card { padding: 13px; }
+      .metric-value { font-size: 21px; }
+      .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .filters .search-control { grid-column: 1 / -1; }
+      .table-footer { align-items: flex-start; flex-direction: column; }
+      .staff-form { grid-template-columns: 1fr; }
+      .staff-form .span-two { grid-column: auto; }
     }
   </style>
+  <script src="/admin-dashboard.js" defer></script>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-900">
+<body>
   <header class="admin-header">
-    <div class="container mx-auto flex flex-wrap items-center justify-between gap-4 px-6 py-4">
-      <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">MKCA</p>
-        <h1 class="text-xl font-bold">Customer Applications</h1>
+    <div class="page-width header-content">
+      <a class="brand" href="/" aria-label="MKCA home">
+        <img src="/assets/logos/mkca-logo.svg" alt="">
+        <span>MKCA</span>
+      </a>
+      <div class="brand-title">
+        <p>ADMIN PORTAL</p>
+        <h1>Dashboard</h1>
       </div>
-      <div id="adminToolbar" class="hidden items-center gap-3">
-        <span id="adminName" class="text-sm text-slate-600"></span>
-        <button id="refreshApplications" type="button" class="btn btn-outline btn-sm" title="Refresh applications">Refresh</button>
-        <button id="logoutButton" type="button" class="btn btn-primary btn-sm">Sign out</button>
+      <div id="adminToolbar" class="header-actions hidden">
+        <span id="adminName" class="admin-name"></span>
+        <button id="refreshDashboard" class="btn btn-secondary" type="button">Refresh</button>
+        <button id="logoutButton" class="btn btn-danger" type="button">Log out</button>
       </div>
     </div>
   </header>
 
-  <main class="container mx-auto px-6 py-8">
-    <div id="notice" role="status" aria-live="polite" class="hidden mb-5 rounded-lg border p-4 text-sm"></div>
+  <main class="page-width">
+    <div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
 
-    <section id="loginPanel" class="mx-auto max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 class="text-lg font-semibold">Admin sign in</h2>
-      <p class="mt-1 mb-5 text-sm text-slate-600">Sign in with your MKCA administrator account to review applications.</p>
-      <form id="loginForm" class="space-y-4">
-        <div>
-          <label for="username" class="mb-1 block text-sm font-medium">Username</label>
-          <input id="username" name="username" type="text" autocomplete="username" required />
+    <section id="loginPanel" class="card login-card hidden" aria-labelledby="loginTitle">
+      <h2 id="loginTitle">Sign in</h2>
+      <p class="muted">Use your MKCA staff account to access the dashboard.</p>
+      <form id="loginForm">
+        <div class="form-field">
+          <label for="username">Email or admin username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required>
         </div>
-        <div>
-          <label for="password" class="mb-1 block text-sm font-medium">Password</label>
-          <input id="password" name="password" type="password" autocomplete="current-password" required />
+        <div class="form-field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
         </div>
-        <button id="loginButton" type="submit" class="btn btn-primary w-full">Sign in</button>
+        <button id="loginButton" class="btn btn-primary btn-block" type="submit">Sign in</button>
       </form>
     </section>
 
-    <section id="applicationsPanel" class="hidden">
-      <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div id="dashboardPanel" class="hidden">
+      <section class="section-heading">
         <div>
-          <h2 class="text-lg font-semibold">Applications</h2>
-          <p class="text-sm text-slate-600">Customer details and NRC documents are restricted to authorized staff.</p>
+          <h2>Overview</h2>
+          <p class="muted">A current snapshot of applications, policies, claims and premiums.</p>
         </div>
-        <p id="applicationCount" class="text-sm text-slate-600"></p>
-      </div>
-      <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-        <table class="min-w-[1100px] w-full border-collapse text-left text-sm">
-          <thead class="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
-            <tr>
-              <th class="px-4 py-3">Reference</th>
-              <th class="px-4 py-3">Customer</th>
-              <th class="px-4 py-3">NRC number</th>
-              <th class="px-4 py-3">Contact</th>
-              <th class="px-4 py-3">Product</th>
-              <th class="px-4 py-3">Coverage</th>
-              <th class="px-4 py-3">Submitted</th>
-              <th class="px-4 py-3">Status</th>
-              <th class="px-4 py-3">NRC file</th>
-            </tr>
-          </thead>
-          <tbody id="applicationsBody" class="divide-y divide-slate-200"></tbody>
-        </table>
-      </div>
-      <p id="emptyState" class="hidden rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-600">No applications have been submitted yet.</p>
-    </section>
+      </section>
+
+      <section class="metrics-grid" aria-label="Dashboard summary">
+        <article class="card metric-card">
+          <p class="metric-label">Applications</p>
+          <p id="metricApplications" class="metric-value">-</p>
+        </article>
+        <article class="card metric-card">
+          <p class="metric-label">Policies</p>
+          <p id="metricPolicies" class="metric-value">-</p>
+        </article>
+        <article class="card metric-card">
+          <p class="metric-label">Claims</p>
+          <p id="metricClaims" class="metric-value">-</p>
+        </article>
+        <article class="card metric-card">
+          <p class="metric-label">Premiums recorded</p>
+          <p id="metricPremiums" class="metric-value">-</p>
+          <p id="metricPremiumCount" class="metric-note">-</p>
+          <p class="metric-note">Purchase records only; not reconciled against the payment gateway.</p>
+        </article>
+      </section>
+
+      <section class="card section" aria-labelledby="applicationsTitle">
+        <div class="section-heading">
+          <div>
+            <h2 id="applicationsTitle">Loan applications</h2>
+            <p class="muted">Search, filter and export application records.</p>
+          </div>
+          <button id="downloadCsv" class="btn btn-secondary" type="button">Download CSV</button>
+        </div>
+
+        <form id="filtersForm" class="filters">
+          <div class="filter-control search-control">
+            <label for="searchFilter">Search</label>
+            <input id="searchFilter" type="search" placeholder="Name, reference, phone, email or NRC">
+          </div>
+          <div class="filter-control">
+            <label for="statusFilter">Status</label>
+            <select id="statusFilter">
+              <option value="all">All statuses</option>
+              <option value="draft">Draft</option>
+              <option value="submitted">Submitted</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="paid">Paid</option>
+            </select>
+          </div>
+          <div class="filter-control">
+            <label for="fromDate">From date</label>
+            <input id="fromDate" type="date">
+          </div>
+          <div class="filter-control">
+            <label for="toDate">To date</label>
+            <input id="toDate" type="date">
+          </div>
+          <div class="filter-control">
+            <label for="pageSize">Rows</label>
+            <select id="pageSize">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" type="submit">Apply</button>
+          <button id="clearFilters" class="btn btn-secondary" type="button">Clear</button>
+        </form>
+
+        <p id="applicationCount" class="muted" aria-live="polite"></p>
+        <div class="table-scroll">
+          <table class="applications-table">
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Customer</th>
+                <th>NRC / Passport</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Product</th>
+                <th>Loan amount</th>
+                <th>Coverage</th>
+                <th>Premium</th>
+                <th>Submitted</th>
+                <th>Status</th>
+                <th>NRC document</th>
+              </tr>
+            </thead>
+            <tbody id="applicationsBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty-state hidden">No applications match these filters.</div>
+        </div>
+        <div class="table-footer">
+          <span id="pageInfo" class="muted"></span>
+          <div class="pagination">
+            <button id="previousPage" class="btn btn-secondary" type="button">Previous</button>
+            <button id="nextPage" class="btn btn-secondary" type="button">Next</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="staffPanel" class="card section hidden" aria-labelledby="staffTitle">
+        <div class="section-heading">
+          <div>
+            <h2 id="staffTitle">Staff accounts</h2>
+            <p class="muted">Create individual sign-ins for staff. Only super admins can manage accounts.</p>
+          </div>
+        </div>
+        <div class="staff-layout">
+          <form id="staffForm" class="staff-form">
+            <div class="form-field">
+              <label for="staffFullName">Full name</label>
+              <input id="staffFullName" name="fullName" type="text" autocomplete="name" required>
+            </div>
+            <div class="form-field">
+              <label for="staffEmail">Email</label>
+              <input id="staffEmail" name="email" type="email" autocomplete="email" required>
+            </div>
+            <div class="form-field">
+              <label for="staffPhone">Phone</label>
+              <input id="staffPhone" name="phone" type="tel" autocomplete="tel" required>
+            </div>
+            <div class="form-field">
+              <label for="staffIdNumber">NRC / Passport</label>
+              <input id="staffIdNumber" name="nrcPassport" type="text" required>
+            </div>
+            <div class="form-field">
+              <label for="staffDateOfBirth">Date of birth</label>
+              <input id="staffDateOfBirth" name="dateOfBirth" type="date" required>
+            </div>
+            <div class="form-field">
+              <label for="staffRole">Role</label>
+              <select id="staffRole" name="role" required>
+                <option value="administrator">Administrator</option>
+                <option value="insurance_officer">Insurance officer</option>
+                <option value="claims_officer">Claims officer</option>
+                <option value="finance_officer">Finance officer</option>
+              </select>
+            </div>
+            <div class="form-field span-two">
+              <label for="staffAddress">Address</label>
+              <input id="staffAddress" name="address" type="text" autocomplete="street-address" required>
+            </div>
+            <div class="form-field span-two">
+              <label for="staffPassword">Password (at least 12 characters; share securely)</label>
+              <input id="staffPassword" name="password" type="password" autocomplete="new-password" minlength="12" required>
+            </div>
+            <div class="form-field span-two">
+              <button id="createStaffButton" class="btn btn-primary" type="submit">Create staff account</button>
+            </div>
+          </form>
+
+          <div>
+            <div class="table-scroll">
+              <table class="staff-table">
+                <thead>
+                  <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Created</th></tr>
+                </thead>
+                <tbody id="staffUsersBody"></tbody>
+              </table>
+              <div id="staffEmptyState" class="empty-state hidden">No staff accounts found.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
-
-  <script>
-    const notice = document.getElementById('notice');
-    const loginPanel = document.getElementById('loginPanel');
-    const applicationsPanel = document.getElementById('applicationsPanel');
-    const adminToolbar = document.getElementById('adminToolbar');
-    const loginForm = document.getElementById('loginForm');
-    const applicationsBody = document.getElementById('applicationsBody');
-    const emptyState = document.getElementById('emptyState');
-    const allowedRoles = ['super_admin', 'administrator', 'insurance_officer', 'finance_officer'];
-
-    function showNotice(message, type = 'error') {
-      notice.textContent = message;
-      notice.className = 'mb-5 rounded-lg border p-4 text-sm';
-      notice.classList.add(type === 'success' ? 'border-emerald-200' : 'border-rose-200');
-      notice.classList.add(type === 'success' ? 'bg-emerald-50' : 'bg-rose-50');
-      notice.classList.add(type === 'success' ? 'text-emerald-800' : 'text-rose-800');
-      notice.classList.remove('hidden');
-    }
-
-    async function requestJson(url, options = {}) {
-      const response = await fetch(url, { credentials: 'same-origin', ...options });
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        throw new Error(`The admin API returned a non-JSON response (HTTP ${response.status}). Make sure this page is served by the MKCA application server and that /api routes are forwarded to it.`);
-      }
-
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'The request could not be completed.');
-      }
-      return result;
-    }
-
-    function addCell(row, value) {
-      const cell = document.createElement('td');
-      cell.className = 'px-4 py-3 align-top text-slate-700';
-      cell.textContent = value == null || value === '' ? '—' : String(value);
-      row.appendChild(cell);
-      return cell;
-    }
-
-    function formatMoney(value) {
-      const amount = Number(value);
-      return Number.isFinite(amount) ? `ZMW ${amount.toLocaleString()}` : '—';
-    }
-
-    function renderApplications(applications) {
-      applicationsBody.replaceChildren();
-      document.getElementById('applicationCount').textContent = `${applications.length} shown`;
-      emptyState.classList.toggle('hidden', applications.length > 0);
-
-      applications.forEach((application) => {
-        const row = document.createElement('tr');
-        addCell(row, application.applicationReference);
-        const customer = addCell(row, application.customerName);
-        if (application.companyName) {
-          const company = document.createElement('span');
-          company.className = 'mt-1 block text-xs text-slate-500';
-          company.textContent = application.companyName;
-          customer.appendChild(company);
-        }
-        addCell(row, application.customerId);
-        const contact = addCell(row, application.customerEmail);
-        const phone = document.createElement('span');
-        phone.className = 'mt-1 block text-xs text-slate-500';
-        phone.textContent = application.phoneNumber || '';
-        contact.appendChild(phone);
-        addCell(row, application.productType);
-        addCell(row, `${formatMoney(application.coverageAmount)} / ${application.durationMonths || 0} mo`);
-        const date = application.createdAt ? new Date(application.createdAt).toLocaleString() : '—';
-        addCell(row, date);
-        addCell(row, application.status);
-        const documentCell = addCell(row, '');
-        if (application.hasNrcDocument) {
-          const link = document.createElement('a');
-          link.href = `/api/admin/applications/${encodeURIComponent(application.applicationReference)}/nrc`;
-          link.textContent = 'Download';
-          link.className = 'font-semibold text-sky-800 underline underline-offset-2';
-          link.setAttribute('aria-label', `Download NRC for ${application.applicationReference}`);
-          documentCell.appendChild(link);
-        } else {
-          documentCell.textContent = 'Not uploaded';
-        }
-        applicationsBody.appendChild(row);
-      });
-    }
-
-    async function loadApplications() {
-      showNotice('Loading applications...', 'success');
-      const result = await requestJson('/api/admin/applications');
-      renderApplications(result.applications || []);
-      notice.classList.add('hidden');
-      applicationsPanel.classList.remove('hidden');
-      adminToolbar.classList.remove('hidden');
-      adminToolbar.classList.add('flex');
-      loginPanel.classList.add('hidden');
-    }
-
-    async function acceptUser(user) {
-      if (!allowedRoles.includes(user.role)) {
-        loginPanel.classList.remove('hidden');
-        showNotice('This account does not have permission to view applications.');
-        return;
-      }
-
-      document.getElementById('adminName').textContent = user.fullName || user.email;
-      await loadApplications();
-    }
-
-    loginForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const button = document.getElementById('loginButton');
-      button.disabled = true;
-      notice.classList.add('hidden');
-      try {
-        const result = await requestJson('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: document.getElementById('username').value.trim(),
-            password: document.getElementById('password').value
-          })
-        });
-        await acceptUser(result.user);
-      } catch (error) {
-        showNotice(error.message);
-      } finally {
-        button.disabled = false;
-      }
-    });
-
-    document.getElementById('refreshApplications').addEventListener('click', () => {
-      loadApplications().catch((error) => showNotice(error.message));
-    });
-
-    document.getElementById('logoutButton').addEventListener('click', async () => {
-      try {
-        await requestJson('/api/auth/logout', { method: 'POST' });
-      } finally {
-        applicationsPanel.classList.add('hidden');
-        adminToolbar.classList.add('hidden');
-        adminToolbar.classList.remove('flex');
-        loginPanel.classList.remove('hidden');
-        loginForm.reset();
-        showNotice('You have signed out.', 'success');
-      }
-    });
-
-    requestJson('/api/auth/me')
-      .then((result) => acceptUser(result.user))
-      .catch(() => loginPanel.classList.remove('hidden'));
-  </script>
 </body>
 </html>

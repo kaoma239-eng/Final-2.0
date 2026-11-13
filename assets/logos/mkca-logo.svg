@@ -1,8 +1,8 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="mkcaGrad" x1="18" y1="18" x2="162" y2="162" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0EA5E9"/>
-      <stop offset="1" stop-color="#0F4C81"/>
+      <stop stop-color="#0F4C81"/>
+      <stop offset="1" stop-color="#0A2540"/>
     </linearGradient>
   </defs>
   <rect x="12" y="12" width="156" height="156" rx="28" fill="url(#mkcaGrad)"/>
