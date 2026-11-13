@@ -1,10 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const argon2 = require('argon2');
 
 let app;
+let pool;
+let ensureDatabaseIsReady;
 
 try {
-  ({ app } = require('../server'));
+  ({ app, pool, ensureDatabaseIsReady } = require('../server'));
 } catch (error) {
   app = null;
 }
@@ -78,6 +81,7 @@ test('admin dashboard and its assets are served', async () => {
     const dashboardHtml = await dashboard.text();
     assert.equal(dashboard.status, 200);
     assert.match(dashboardHtml, /\/assets\/logos\/Bright%20Cyan%20MKCA%20Logo%20Letters\.png/);
+    assert.match(dashboardHtml, /<span>Mpangwe Kasonso Chartered Accountants<\/span>/);
     assert.match(dashboardHtml, /\/admin-dashboard\.js/);
     assert.match(dashboardHtml, /Premiums recorded/);
 
@@ -206,6 +210,75 @@ test('contact page map targets MKCA at Godfrey House in Lusaka', async () => {
     assert.match(html, /maps\?output=embed&amp;q=Mpangwe%20Kasonso%20Chartered%20Accountants&amp;z=17/);
     assert.match(html, /title="Map to Mpangwe Kasonso Chartered Accountants at Godfrey House, Lusaka"/);
   } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('admin application pagination uses integer LIMIT values for TiDB', async () => {
+  if (!app || !pool || !ensureDatabaseIsReady) {
+    throw new Error('Server database test dependencies were not exported');
+  }
+
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const password = 'Integration-test-password';
+  const passwordHash = await argon2.hash(password);
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@mkca.local').toLowerCase();
+  const adminUsername = process.env.ADMIN_USERNAME || 'MKCA24';
+  let applicationQuery;
+
+  pool.getConnection = async () => ({
+    ping: async () => {},
+    release() {},
+    async execute(query, values) {
+      if (query.startsWith('SELECT COUNT(*) AS total FROM loan_applications')) {
+        return [[{ total: 1 }], []];
+      }
+      if (query.includes('FROM loan_applications')) {
+        applicationQuery = { query, values };
+        return [[], []];
+      }
+      throw new Error(`Unexpected test database query: ${query}`);
+    }
+  });
+  pool.execute = async (query) => {
+    if (query.includes('FROM users u') && query.includes('INNER JOIN roles')) {
+      return [[{
+        id: 1,
+        email: adminEmail,
+        full_name: 'Test Admin',
+        password_hash: passwordHash,
+        role_name: 'super_admin'
+      }], []];
+    }
+    throw new Error(`Unexpected test database query: ${query}`);
+  };
+
+  const server = app.listen(0);
+  const { port } = server.address();
+
+  try {
+    await ensureDatabaseIsReady();
+    const loginResponse = await fetch(`http://127.0.0.1:${port}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: adminUsername, password })
+    });
+    assert.equal(loginResponse.status, 200);
+    const cookie = loginResponse.headers.get('set-cookie');
+    assert.ok(cookie, 'Login should create an authenticated session');
+
+    const applicationsResponse = await fetch(
+      `http://127.0.0.1:${port}/api/admin/applications?page=1&pageSize=25`,
+      { headers: { Cookie: cookie.split(';', 1)[0] } }
+    );
+    assert.equal(applicationsResponse.status, 200);
+    assert.equal((await applicationsResponse.json()).success, true);
+    assert.match(applicationQuery.query, /LIMIT 25 OFFSET 0/);
+    assert.deepEqual(applicationQuery.values, []);
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
     await new Promise((resolve) => server.close(resolve));
   }
 });

@@ -707,14 +707,15 @@ async function getAdminApplications(filters, pagination = null) {
       const totalPages = Math.max(1, Math.ceil(total / pagination.pageSize));
       const page = Math.min(pagination.page, totalPages);
       const offset = (page - 1) * pagination.pageSize;
+      // TiDB requires validated integer literals for LIMIT and OFFSET.
       const [rows] = await connection.execute(
         `SELECT application_reference, customer_name, customer_email, phone_number, nrc_number,
                 customer_type, company_name, product_type, insurer_name, loan_amount, coverage_amount,
                 premium_amount, duration_months, age_at_application, nrc_uploaded, document_path, status, created_at
          FROM loan_applications${where.sql}
          ORDER BY created_at DESC, application_reference DESC
-         LIMIT ? OFFSET ?`,
-        [...where.values, pagination.pageSize, offset]
+         LIMIT ${pagination.pageSize} OFFSET ${offset}`,
+        where.values
       );
 
       return {
@@ -878,8 +879,8 @@ app.get('/api/admin/applications', requireAuth, requireRole(applicationAdminRole
     const requestedPage = Number.parseInt(req.query.page, 10);
     const requestedPageSize = Number.parseInt(req.query.pageSize, 10);
     const pagination = {
-      page: Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1,
-      pageSize: Number.isInteger(requestedPageSize) && requestedPageSize > 0
+      page: Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1,
+      pageSize: Number.isSafeInteger(requestedPageSize) && requestedPageSize > 0
         ? Math.min(requestedPageSize, 100)
         : 25
     };

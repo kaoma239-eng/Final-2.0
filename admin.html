@@ -29,8 +29,9 @@
     .page-width { width: min(1500px, calc(100% - 32px)); margin: 0 auto; }
     .admin-header { background: var(--surface); border-bottom: 1px solid var(--border); }
     .header-content { min-height: 82px; display: flex; align-items: center; gap: 18px; }
-    .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--primary); text-decoration: none; font-weight: 800; font-size: 19px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: var(--primary); text-decoration: none; font-weight: 800; font-size: 16px; }
     .brand img { width: 48px; height: 48px; object-fit: contain; }
+    .brand span { line-height: 1.15; }
     .brand-title { border-left: 1px solid var(--border); padding-left: 18px; }
     .brand-title p { margin: 0 0 3px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .12em; }
     .brand-title h1 { margin: 0; font-size: 21px; }
@@ -90,15 +91,18 @@
       .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .staff-layout { grid-template-columns: 1fr; }
+      .header-content { flex-wrap: wrap; padding: 12px 0; }
+      .header-actions { flex: 1 1 100%; justify-content: flex-end; margin-left: 0; }
     }
     @media (max-width: 640px) {
       .page-width { width: min(100% - 20px, 1500px); }
       .header-content { min-height: 70px; gap: 10px; }
-      .brand img { width: 40px; height: 40px; }
-      .brand span { display: none; }
-      .brand-title { padding-left: 10px; }
+      .brand { flex: 1 1 100%; }
+      .brand img { flex: 0 0 40px; width: 40px; height: 40px; }
+      .brand span { display: block; font-size: 15px; }
+      .brand-title { margin-left: 50px; border-left: 0; padding-left: 0; }
       .brand-title h1 { font-size: 17px; }
-      .header-actions { gap: 6px; }
+      .header-actions { width: 100%; gap: 6px; }
       .admin-name { display: none; }
       main { padding-top: 18px; }
       .section { padding: 15px; }
@@ -118,9 +122,9 @@
 <body>
   <header class="admin-header">
     <div class="page-width header-content">
-      <a class="brand" href="/" aria-label="MKCA home">
-        <img src="/assets/logos/Bright%20Cyan%20MKCA%20Logo%20Letters.png" alt="MKCA logo">
-        <span>MKCA</span>
+      <a class="brand" href="/" aria-label="Mpangwe Kasonso Chartered Accountants home">
+        <img src="/assets/logos/Bright%20Cyan%20MKCA%20Logo%20Letters.png" alt="Mpangwe Kasonso Chartered Accountants logo">
+        <span>Mpangwe Kasonso Chartered Accountants</span>
       </a>
       <div class="brand-title">
         <p>ADMIN PORTAL</p>
