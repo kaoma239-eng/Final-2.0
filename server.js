@@ -1048,6 +1048,47 @@ function getMailTransporter() {
   return mailTransporter;
 }
 
+async function sendTransactionalEmail({ recipientEmail, subject, text, html, transporter }) {
+  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+  const fromName = process.env.EMAIL_FROM_NAME || 'eDIP';
+  const apiKey = process.env.ZEPTO_API_KEY?.trim();
+
+  if (!fromAddress) {
+    throw new Error('EMAIL_FROM must be configured to send email.');
+  }
+
+  if (transporter) {
+    const from = `"${fromName}" <${fromAddress}>`;
+    await transporter.sendMail({ from, to: recipientEmail, subject, text, html });
+    return;
+  }
+
+  if (apiKey) {
+    const endpoint = process.env.ZEPTO_API_URL || 'https://cpaas.zoho.com/v1.1/email';
+    await axios.post(endpoint, {
+      from: { address: fromAddress, name: fromName },
+      to: [{ email_address: { address: recipientEmail } }],
+      subject,
+      textbody: text,
+      htmlbody: html
+    }, {
+      headers: {
+        Authorization: `Zoho-enczapikey ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+    return;
+  }
+
+  if (isProduction) {
+    throw new Error('ZEPTO_API_KEY is required for production email. Generate an API key in your Zoho CPaaS agent settings; Render Free blocks SMTP ports.');
+  }
+
+  const from = `"${fromName}" <${fromAddress}>`;
+  await getMailTransporter().sendMail({ from, to: recipientEmail, subject, text, html });
+}
+
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
@@ -1058,7 +1099,7 @@ function escapeHtml(value) {
   })[character]);
 }
 
-async function sendApplicationConfirmationEmail(application, transporter = getMailTransporter()) {
+async function sendApplicationConfirmationEmail(application, transporter) {
   const customerName = escapeHtml(application.customerName);
   const applicationReference = escapeHtml(application.applicationReference);
   const productType = escapeHtml(application.productType);
@@ -1067,9 +1108,8 @@ async function sendApplicationConfirmationEmail(application, transporter = getMa
   const premiumAmount = Number(application.premiumAmount).toLocaleString();
   const durationMonths = Number(application.durationMonths);
 
-  await transporter.sendMail({
-    from: `"${process.env.EMAIL_FROM_NAME || 'eDIP'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-    to: application.customerEmail,
+  await sendTransactionalEmail({
+    recipientEmail: application.customerEmail,
     subject: 'eDIP Application Received',
     text: `Dear ${application.customerName},\n\nWe have received your insurance application. Your application reference is ${application.applicationReference}.\nProduct: ${application.productType}\nInsurer: ${application.insurerName}\nCoverage amount: ZMW ${coverageAmount}\nQuoted premium: ZMW ${premiumAmount}\nDuration: ${durationMonths} month(s)\n\nPlease keep this reference for your records. The eDIP team will contact you with payment instructions.\n\nRegards,\neDIP`,
     html: `<p>Dear ${customerName},</p>
@@ -1080,7 +1120,8 @@ async function sendApplicationConfirmationEmail(application, transporter = getMa
            Quoted premium: <strong>ZMW ${premiumAmount}</strong><br />
            Duration: <strong>${durationMonths} month(s)</strong></p>
            <p>Please keep this reference for your records. The eDIP team will contact you with payment instructions.</p>
-           <p>Regards,<br/>eDIP</p>`
+           <p>Regards,<br/>eDIP</p>`,
+    transporter
   });
 }
 
@@ -1870,12 +1911,8 @@ app.post('/api/send-email', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Reference number is required' });
     }
 
-    const transporter = getMailTransporter();
-    const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
-    const fromName = process.env.EMAIL_FROM_NAME || 'eDIP';
-    await transporter.sendMail({
-      from: `"${fromName}" <${fromAddress}>`,
-      to: recipientEmail,
+    await sendTransactionalEmail({
+      recipientEmail,
       subject: 'eDIP Payment Confirmation',
       text: `Dear ${customerName},\n\nThank you for your payment. Your purchase reference number is ${referenceNumber}.\nProduct: ${productType || 'Insurance'}\nInsurer: ${insurerName || 'eDIP'}\nPremium amount paid: ZMW ${premiumAmount.toLocaleString()}\n\nPlease keep this reference number for your records.\n\nRegards,\neDIP`,
       html: `<p>Dear ${customerName},</p>
