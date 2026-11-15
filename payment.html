@@ -109,6 +109,7 @@
             <p class="text-sm text-slate-600 mb-1">Application reference</p>
             <p id="applicationReference" class="text-2xl font-bold text-slate-900 font-mono"></p>
             <p class="text-sm text-slate-600 mt-2">Keep this reference. The MKCA team will contact you with payment instructions.</p>
+            <p id="emailDeliveryStatus" class="text-sm mt-3" role="status"></p>
           </div>
           <a href="index.html" class="btn btn-primary w-full">Return to Home</a>
         </div>
@@ -335,6 +336,11 @@
         });
 
         document.getElementById('applicationReference').textContent = applicationResponse.applicationReference;
+        const emailDeliveryStatus = document.getElementById('emailDeliveryStatus');
+        emailDeliveryStatus.textContent = applicationResponse.emailSent
+          ? `A confirmation email was sent to ${document.getElementById('email').value.trim()}.`
+          : 'Your application was received, but we could not send a confirmation email. The MKCA team will contact you.';
+        emailDeliveryStatus.classList.add(applicationResponse.emailSent ? 'text-emerald-700' : 'text-amber-700');
         document.getElementById('customerInfoSection').classList.add('hidden');
         paymentActions.classList.add('hidden');
         payResult.classList.add('hidden');

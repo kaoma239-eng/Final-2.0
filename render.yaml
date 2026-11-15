@@ -37,16 +37,16 @@ services:
       - key: ADMIN_EMAIL
         value: admin@mkca.local
       - key: EMAIL_HOST
-        sync: false
+        value: smtp.zeptomail.com
       - key: EMAIL_PORT
         value: "465"
       - key: EMAIL_SECURE
         value: "true"
       - key: EMAIL_USER
-        sync: false
+        value: emailapikey
       - key: EMAIL_PASS
         sync: false
       - key: EMAIL_FROM
-        sync: false
+        value: info@mkcharteredaccountants.co
       - key: EMAIL_FROM_NAME
-        value: MKCA Insurance
+        value: eDIP

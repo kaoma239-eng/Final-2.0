@@ -1027,10 +1027,10 @@ function createTransporter() {
   const port = Number(process.env.EMAIL_PORT || 465);
   const secure = String(process.env.EMAIL_SECURE || (port === 465)).toLowerCase() === 'true';
   const emailUser = process.env.EMAIL_USER.trim();
-  const emailPass = process.env.EMAIL_PASS.replace(/[\s-]/g, '');
+  const emailPass = process.env.EMAIL_PASS.trim();
 
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    host: process.env.EMAIL_HOST || 'smtp.zeptomail.com',
     port,
     secure,
     auth: {
@@ -1046,6 +1046,42 @@ function getMailTransporter() {
   }
 
   return mailTransporter;
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+async function sendApplicationConfirmationEmail(application, transporter = getMailTransporter()) {
+  const customerName = escapeHtml(application.customerName);
+  const applicationReference = escapeHtml(application.applicationReference);
+  const productType = escapeHtml(application.productType);
+  const insurerName = escapeHtml(application.insurerName);
+  const coverageAmount = Number(application.coverageAmount).toLocaleString();
+  const premiumAmount = Number(application.premiumAmount).toLocaleString();
+  const durationMonths = Number(application.durationMonths);
+
+  await transporter.sendMail({
+    from: `"${process.env.EMAIL_FROM_NAME || 'eDIP'}" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    to: application.customerEmail,
+    subject: 'eDIP Application Received',
+    text: `Dear ${application.customerName},\n\nWe have received your insurance application. Your application reference is ${application.applicationReference}.\nProduct: ${application.productType}\nInsurer: ${application.insurerName}\nCoverage amount: ZMW ${coverageAmount}\nQuoted premium: ZMW ${premiumAmount}\nDuration: ${durationMonths} month(s)\n\nPlease keep this reference for your records. The eDIP team will contact you with payment instructions.\n\nRegards,\neDIP`,
+    html: `<p>Dear ${customerName},</p>
+           <p>We have received your insurance application. Your application reference is <strong>${applicationReference}</strong>.</p>
+           <p>Product: <strong>${productType}</strong><br />
+           Insurer: <strong>${insurerName}</strong><br />
+           Coverage amount: <strong>ZMW ${coverageAmount}</strong><br />
+           Quoted premium: <strong>ZMW ${premiumAmount}</strong><br />
+           Duration: <strong>${durationMonths} month(s)</strong></p>
+           <p>Please keep this reference for your records. The eDIP team will contact you with payment instructions.</p>
+           <p>Regards,<br/>eDIP</p>`
+  });
 }
 
 function getCertificateFilePath(certificateNumber) {
@@ -1424,6 +1460,7 @@ app.post('/api/save-application', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
+    let savedToDatabase = false;
     if (dbAvailable) {
       let connection;
       try {
@@ -1454,8 +1491,7 @@ app.post('/api/save-application', async (req, res) => {
             'submitted'
           ]
         );
-
-        return res.json({ success: true, applicationReference, message: 'Application stored successfully.' });
+        savedToDatabase = true;
       } catch (error) {
         console.error('Error saving application to database:', error);
         dbAvailable = false;
@@ -1464,10 +1500,26 @@ app.post('/api/save-application', async (req, res) => {
       }
     }
 
-    const records = await loadJsonFile(loanApplicationsPath, []);
-    records.push(applicationRecord);
-    await saveJsonFile(loanApplicationsPath, records);
-    return res.json({ success: true, applicationReference, message: 'Application saved locally.' });
+    if (!savedToDatabase) {
+      const records = await loadJsonFile(loanApplicationsPath, []);
+      records.push(applicationRecord);
+      await saveJsonFile(loanApplicationsPath, records);
+    }
+
+    let emailSent = false;
+    try {
+      await sendApplicationConfirmationEmail(applicationRecord);
+      emailSent = true;
+    } catch (error) {
+      console.error(`Failed to send application confirmation to ${safeCustomerEmail}:`, error);
+    }
+
+    return res.json({
+      success: true,
+      applicationReference,
+      emailSent,
+      message: savedToDatabase ? 'Application stored successfully.' : 'Application saved locally.'
+    });
   } catch (error) {
     console.error('Error saving application:', error);
     return res.status(500).json({ success: false, message: error.message || 'Unable to save application' });
@@ -1820,19 +1872,19 @@ app.post('/api/send-email', async (req, res) => {
 
     const transporter = getMailTransporter();
     const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
-    const fromName = process.env.EMAIL_FROM_NAME || 'MKCA Insurance';
+    const fromName = process.env.EMAIL_FROM_NAME || 'eDIP';
     await transporter.sendMail({
       from: `"${fromName}" <${fromAddress}>`,
       to: recipientEmail,
-      subject: 'MKCA Insurance Payment Confirmation',
-      text: `Dear ${customerName},\n\nThank you for your payment. Your purchase reference number is ${referenceNumber}.\nProduct: ${productType || 'Insurance'}\nInsurer: ${insurerName || 'MKCA Insurance'}\nPremium amount paid: ZMW ${premiumAmount.toLocaleString()}\n\nPlease keep this reference number for your records.\n\nRegards,\nMKCA Insurance`,
+      subject: 'eDIP Payment Confirmation',
+      text: `Dear ${customerName},\n\nThank you for your payment. Your purchase reference number is ${referenceNumber}.\nProduct: ${productType || 'Insurance'}\nInsurer: ${insurerName || 'eDIP'}\nPremium amount paid: ZMW ${premiumAmount.toLocaleString()}\n\nPlease keep this reference number for your records.\n\nRegards,\neDIP`,
       html: `<p>Dear ${customerName},</p>
              <p>Thank you for your payment. Your purchase reference number is <strong>${referenceNumber}</strong>.</p>
              <p>Product: <strong>${productType || 'Insurance'}</strong><br />
-             Insurer: <strong>${insurerName || 'MKCA Insurance'}</strong><br />
+             Insurer: <strong>${insurerName || 'eDIP'}</strong><br />
              Premium amount paid: <strong>ZMW ${premiumAmount.toLocaleString()}</strong></p>
              <p>Please keep this reference number for your records.</p>
-             <p>Regards,<br/>MKCA Insurance</p>`
+             <p>Regards,<br/>eDIP</p>`
     });
 
     return res.json({ success: true });
@@ -1869,5 +1921,6 @@ module.exports = {
   ensureDatabaseIsReady,
   sanitizeText,
   formatZambianPhoneNumber,
-  isValidZambianMobileNumber
+  isValidZambianMobileNumber,
+  sendApplicationConfirmationEmail
 };
