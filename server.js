@@ -1065,19 +1065,28 @@ async function sendTransactionalEmail({ recipientEmail, subject, text, html, tra
 
   if (apiKey) {
     const endpoint = process.env.ZEPTO_API_URL || 'https://cpaas.zoho.com/v1.1/email';
-    await axios.post(endpoint, {
-      from: { address: fromAddress, name: fromName },
-      to: [{ email_address: { address: recipientEmail } }],
-      subject,
-      textbody: text,
-      htmlbody: html
-    }, {
-      headers: {
-        Authorization: `Zoho-enczapikey ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 15000
-    });
+    try {
+      await axios.post(endpoint, {
+        from: { address: fromAddress, name: fromName },
+        to: [{ email_address: { address: recipientEmail } }],
+        subject,
+        textbody: text,
+        htmlbody: html
+      }, {
+        headers: {
+          Authorization: `Zoho-enczapikey ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000
+      });
+    } catch (error) {
+      const responseData = error.response?.data;
+      const detail = typeof responseData === 'string'
+        ? responseData
+        : responseData?.message || responseData?.error?.message || responseData?.error || responseData?.code;
+      const status = error.response?.status ? `HTTP ${error.response.status}` : error.code;
+      throw new Error(`Zoho CPaaS email API failed${status ? ` (${status})` : ''}: ${String(detail || error.message).slice(0, 300)}`);
+    }
     return;
   }
 
