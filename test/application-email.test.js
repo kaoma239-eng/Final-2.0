@@ -32,12 +32,14 @@ test('application confirmation uses Zoho CPaaS API with the eDIP sender', async 
   const originalPost = axios.post;
   const originalEnvironment = {
     ZEPTO_API_KEY: process.env.ZEPTO_API_KEY,
+    API_KEY: process.env.API_KEY,
     ZEPTO_API_URL: process.env.ZEPTO_API_URL,
     EMAIL_FROM: process.env.EMAIL_FROM,
     EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME
   };
   let request;
-  process.env.ZEPTO_API_KEY = 'test-api-key';
+  delete process.env.ZEPTO_API_KEY;
+  process.env.API_KEY = 'test-api-key';
   process.env.ZEPTO_API_URL = 'https://cpaas.example.test/v1.1/email';
   process.env.EMAIL_FROM = 'info@mkcharteredaccountants.co';
   process.env.EMAIL_FROM_NAME = 'eDIP';

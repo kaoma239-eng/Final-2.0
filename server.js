@@ -1051,7 +1051,7 @@ function getMailTransporter() {
 async function sendTransactionalEmail({ recipientEmail, subject, text, html, transporter }) {
   const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
   const fromName = process.env.EMAIL_FROM_NAME || 'eDIP';
-  const apiKey = process.env.ZEPTO_API_KEY?.trim();
+  const apiKey = (process.env.ZEPTO_API_KEY || process.env.API_KEY)?.trim();
 
   if (!fromAddress) {
     throw new Error('EMAIL_FROM must be configured to send email.');
@@ -1082,7 +1082,7 @@ async function sendTransactionalEmail({ recipientEmail, subject, text, html, tra
   }
 
   if (isProduction) {
-    throw new Error('ZEPTO_API_KEY is required for production email. Generate an API key in your Zoho CPaaS agent settings; Render Free blocks SMTP ports.');
+    throw new Error('ZEPTO_API_KEY (or API_KEY) is required for production email. Generate an API key in your Zoho CPaaS agent settings; Render Free blocks SMTP ports.');
   }
 
   const from = `"${fromName}" <${fromAddress}>`;
