@@ -1,0 +1,41 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build:vercel",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://mkca-insurance-api.onrender.com/api/:path*"
+    },
+    {
+      "source": "/insurance",
+      "destination": "/products.html"
+    },
+    {
+      "source": "/insurance/products",
+      "destination": "/products.html"
+    },
+    {
+      "source": "/insurance/quote",
+      "destination": "/quote-calculator.html"
+    },
+    {
+      "source": "/insurance/apply",
+      "destination": "/quote-calculator.html"
+    },
+    {
+      "source": "/insurance/payment",
+      "destination": "/payment.html"
+    },
+    {
+      "source": "/insurance/claims",
+      "destination": "/claims.html"
+    },
+    {
+      "source": "/payment/callback",
+      "destination": "/payment-callback.html"
+    }
+  ]
+}
