@@ -409,6 +409,7 @@ test('all pages use the root MKCA favicon and expose crawler rules', async () =>
         assert.match(html, /href="services\.html" class="btn btn-primary btn-lg">Our Services<\/a>/);
         assert.match(html, /href="products\.html" class="btn btn-outline btn-lg[^"]*">Insurance<\/a>/);
         assert.match(html, /href="products\.html">Insurance<\/a>/);
+        assert.doesNotMatch(html, /href="contact\.html" class="btn btn-primary btn-sm">Contact Us<\/a>/);
         assert.match(html, /Arbitration/);
       }
       if (pagePath === '/services') {
