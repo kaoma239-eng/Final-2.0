@@ -22,7 +22,15 @@ const isProduction = String(process.env.NODE_ENV || '').toLowerCase() === 'produ
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'MKCA24';
 const applicationAdminRoles = ['super_admin', 'administrator', 'insurance_officer', 'claims_officer', 'finance_officer'];
 const ADMIN_SESSION_IDLE_TIMEOUT_MS = 30_000;
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || `${BASE_URL},http://localhost:${PORT},http://127.0.0.1:${PORT}`).split(',').map((value) => value.trim()).filter(Boolean);
+const allowedOrigins = new Set([
+  BASE_URL,
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
+  'https://mkcharteredaccountants.co',
+  'https://www.mkcharteredaccountants.co',
+  'https://final-2-0-ten.vercel.app',
+  ...String(process.env.ALLOWED_ORIGINS || '').split(',')
+].map((value) => value.trim()).filter(Boolean));
 const certificatesDir = path.join(__dirname, 'certificates');
 const publicDir = path.join(__dirname, 'public');
 const dataDir = path.join(__dirname, 'data');
@@ -301,7 +309,7 @@ if (isProduction) {
 }
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.has(origin)) {
       callback(null, true);
       return;
     }
@@ -1121,7 +1129,7 @@ async function sendApplicationConfirmationEmail(application, transporter) {
   await sendTransactionalEmail({
     recipientEmail: application.customerEmail,
     subject: 'eDIP Application Received',
-    text: `Dear ${application.customerName},\n\nWe have received your insurance application. Your application reference is ${application.applicationReference}.\nProduct: ${application.productType}\nInsurer: ${application.insurerName}\nCoverage amount: ZMW ${coverageAmount}\nQuoted premium: ZMW ${premiumAmount}\nDuration: ${durationMonths} month(s)\n\nPlease keep this reference for your records. The eDIP team will contact you with payment instructions.\n\nRegards,\neDIP`,
+    text: `Dear ${application.customerName},\n\nWe have received your insurance application. Your application reference is ${application.applicationReference}.\nProduct: ${application.productType}\nInsurer: ${application.insurerName}\nCoverage amount: ZMW ${coverageAmount}\nQuoted premium: ZMW ${premiumAmount}\nDuration: ${durationMonths} month(s)\n\nThis email confirms receipt of your application only, not payment. Follow the mobile-money prompt shown after submission and wait for Lipila's payment confirmation. If no prompt arrives, contact the eDIP team with your application reference.\n\nRegards,\neDIP`,
     html: `<p>Dear ${customerName},</p>
            <p>We have received your insurance application. Your application reference is <strong>${applicationReference}</strong>.</p>
            <p>Product: <strong>${productType}</strong><br />
@@ -1129,7 +1137,7 @@ async function sendApplicationConfirmationEmail(application, transporter) {
            Coverage amount: <strong>ZMW ${coverageAmount}</strong><br />
            Quoted premium: <strong>ZMW ${premiumAmount}</strong><br />
            Duration: <strong>${durationMonths} month(s)</strong></p>
-           <p>Please keep this reference for your records. The eDIP team will contact you with payment instructions.</p>
+           <p>This email confirms receipt of your application only, not payment. Follow the mobile-money prompt shown after submission and wait for Lipila's payment confirmation. If no prompt arrives, contact the eDIP team with your application reference.</p>
            <p>Regards,<br/>eDIP</p>`,
     transporter
   });
@@ -1143,79 +1151,181 @@ function getCertificateFilePath(certificateNumber) {
   return path.join(certificatesDir, `${safeNumber}.pdf`);
 }
 
+const lipilaApiBaseUrls = {
+  sandbox: 'https://api.lipila.dev',
+  production: 'https://blz.lipila.io'
+};
+
+function getLipilaApiBaseUrl(environment = process.env.LIPILA_ENVIRONMENT || 'production') {
+  const normalizedEnvironment = String(environment).trim().toLowerCase();
+  const selectedEnvironment = normalizedEnvironment === 'live' ? 'production' : normalizedEnvironment;
+  const baseUrl = lipilaApiBaseUrls[selectedEnvironment];
+
+  if (!baseUrl) {
+    throw new Error('LIPILA_ENVIRONMENT must be set to sandbox or production.');
+  }
+
+  return baseUrl;
+}
+
+function normalizeLipilaPaymentStatus(status) {
+  const normalizedStatus = sanitizeText(status).toLowerCase();
+  if (normalizedStatus === 'pending') return 'Pending';
+  if (normalizedStatus === 'successful') return 'Successful';
+  if (normalizedStatus === 'failed') return 'Failed';
+  return null;
+}
+
+function buildLipilaCollectionPayload(application, referenceId, applicationReference) {
+  const phoneNumber = formatZambianPhoneNumber(application.phone_number || application.phoneNumber);
+
+  return {
+    referenceId,
+    amount: Number(application.premium_amount ?? application.premiumAmount),
+    narration: `eDIP ${sanitizeText(application.product_type || application.productType)} premium`,
+    accountNumber: phoneNumber.replace(/^\+/, ''),
+    currency: 'ZMW',
+    email: sanitizeText(application.customer_email || application.customerEmail),
+    referenceData: applicationReference
+  };
+}
+
+async function getApplicationForPayment(applicationReference) {
+  if (dbAvailable) {
+    let connection;
+    try {
+      connection = await pool.getConnection();
+      const [rows] = await connection.execute(
+        `SELECT application_reference, customer_email, phone_number, product_type, premium_amount
+         FROM loan_applications
+         WHERE application_reference = ?
+         LIMIT 1`,
+        [applicationReference]
+      );
+      return rows[0] || null;
+    } finally {
+      if (connection) connection.release();
+    }
+  }
+
+  const applications = await loadJsonFile(loanApplicationsPath, []);
+  return applications.find((application) => application.applicationReference === applicationReference) || null;
+}
+
 app.post('/api/checkout', async (req, res) => {
   try {
-    const { amount, phoneNumber } = req.body || {};
-    const numericAmount = Number(amount);
-    const sanitizedPhone = sanitizeText(phoneNumber);
-
-    if (!sanitizedPhone) {
-      return res.status(400).json({ success: false, message: 'Phone number is required.' });
+    const applicationReference = sanitizeText(req.body?.applicationReference);
+    if (!/^APP-\d{8}-\d{6}$/.test(applicationReference)) {
+      return res.status(400).json({ success: false, message: 'A valid application reference is required.' });
     }
 
-    if (!isValidZambianMobileNumber(sanitizedPhone)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Phone number is invalid. Use a valid Airtel, MTN, or Zamtel number in Zambia.'
-      });
+    const application = await getApplicationForPayment(applicationReference);
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found.' });
     }
 
-    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Amount must be greater than zero.' });
+    const phoneNumber = formatZambianPhoneNumber(application.phone_number || application.phoneNumber);
+    if (!Number.isFinite(Number(application.premium_amount ?? application.premiumAmount))
+      || Number(application.premium_amount ?? application.premiumAmount) <= 0
+      || !isValidZambianMobileNumber(phoneNumber)) {
+      return res.status(422).json({ success: false, message: 'The application has invalid payment details.' });
     }
 
-    const formattedPhone = formatZambianPhoneNumber(sanitizedPhone);
-    const lipilaKey = process.env.LIPILA_API_KEY;
-    const callbackUrl = process.env.LIPILA_CALLBACK_URL || `${BASE_URL}/payment/callback`;
-
-    if (!lipilaKey) {
-      return res.status(500).json({ success: false, message: 'Payment provider credentials are not configured.' });
+    const apiKey = process.env.LIPILA_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ success: false, message: 'Lipila payment credentials are not configured.' });
     }
 
-    const payload = {
-      customerInfo: {
-        firstName: 'Customer',
-        lastName: 'User',
-        phoneNumber: formattedPhone,
-        city: 'Lusaka',
-        country: 'ZM',
-        email: 'billing@domain.com'
-      },
-      collectionRequest: {
-        referenceId: `tx-${Date.now()}`,
-        amount: numericAmount,
-        accountNumber: formattedPhone,
-        currency: 'ZMW',
-        backUrl: callbackUrl
+    const apiBaseUrl = getLipilaApiBaseUrl();
+    const callbackUrl = process.env.LIPILA_WEBHOOK_URL || `${BASE_URL}/api/webhook`;
+    const referenceId = crypto.randomUUID();
+    const payload = buildLipilaCollectionPayload(application, referenceId, applicationReference);
+
+    const lipilaResponse = await axios.post(
+      `${apiBaseUrl}/api/v1/collections/mobile-money`,
+      payload,
+      {
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          callbackUrl
+        },
+        timeout: 30000
       }
-    };
+    );
 
-    const lipilaResponse = await axios.post('https://lipila.dev', payload, {
+    const paymentStatus = normalizeLipilaPaymentStatus(lipilaResponse.data?.status);
+    if (!paymentStatus) {
+      console.error('Lipila returned an invalid collection response.', {
+        status: lipilaResponse.status
+      });
+      return res.status(502).json({ success: false, message: 'Lipila did not confirm the payment request.' });
+    }
+
+    if (paymentStatus === 'Failed') {
+      return res.status(409).json({ success: false, message: 'Lipila could not start this payment.' });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        referenceId,
+        identifier: sanitizeText(lipilaResponse.data.identifier).slice(0, 128),
+        status: paymentStatus
+      }
+    });
+  } catch (error) {
+    console.error('Lipila checkout request failed:', {
+      status: error.response?.status,
+      code: error.code
+    });
+
+    const message = error.response?.status === 401 || error.response?.status === 403
+      ? 'Lipila rejected the API key. Check that Render has a Live key.'
+      : 'Unable to start a payment request. Your application was received; contact support with its reference.';
+    return res.status(502).json({ success: false, message });
+  }
+});
+
+app.get('/api/checkout/:referenceId/status', async (req, res) => {
+  const referenceId = sanitizeText(req.params.referenceId);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(referenceId)) {
+    return res.status(400).json({ success: false, message: 'A valid payment reference is required.' });
+  }
+
+  const apiKey = process.env.LIPILA_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({ success: false, message: 'Lipila payment credentials are not configured.' });
+  }
+
+  try {
+    const apiBaseUrl = getLipilaApiBaseUrl();
+    const lipilaResponse = await axios.get(`${apiBaseUrl}/api/v1/collections/check-status`, {
+      params: { referenceId },
       headers: {
         accept: 'application/json',
-        'Content-Type': 'application/json',
-        'x-api-key': lipilaKey,
-        callbackUrl: callbackUrl
+        'x-api-key': apiKey
       },
-      timeout: 30000
+      timeout: 15000
     });
+    const paymentStatus = normalizeLipilaPaymentStatus(lipilaResponse.data?.status);
 
-    if (lipilaResponse && lipilaResponse.data) {
-      return res.status(200).json({ success: true, data: lipilaResponse.data });
+    if (!paymentStatus) {
+      return res.status(502).json({ success: false, message: 'Lipila returned an invalid payment status.' });
     }
 
-    return res.status(500).json({ success: false, message: 'Lipila payment request failed.' });
+    return res.json({ success: true, data: { referenceId, status: paymentStatus } });
   } catch (error) {
-    console.error('Lipila checkout error details:', {
-      message: error.message,
+    console.error('Lipila payment status check failed:', {
       status: error.response?.status,
-      data: error.response?.data,
-      stack: error.stack
+      code: error.code
     });
 
-    return res.status(500).json({
+    const statusCode = error.response?.status === 404 ? 404 : 502;
+    return res.status(statusCode).json({
       success: false,
-      message: 'Payment gateway request failed.'
+      message: statusCode === 404 ? 'Payment reference was not found.' : 'Unable to check payment status.'
     });
   }
 });
@@ -1969,5 +2079,8 @@ module.exports = {
   sanitizeText,
   formatZambianPhoneNumber,
   isValidZambianMobileNumber,
-  sendApplicationConfirmationEmail
+  sendApplicationConfirmationEmail,
+  getLipilaApiBaseUrl,
+  normalizeLipilaPaymentStatus,
+  buildLipilaCollectionPayload
 };

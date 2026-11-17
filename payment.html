@@ -94,7 +94,7 @@
 
       <!-- Action Buttons -->
       <div class="flex gap-3 mb-4" id="paymentActions">
-        <button id="payNow" class="btn btn-primary flex-1">Submit Application</button>
+        <button id="payNow" class="btn btn-primary flex-1">Submit Application &amp; Pay</button>
         <a href="quote-calculator.html" class="btn btn-outline">Back</a>
       </div>
 
@@ -108,7 +108,8 @@
           <div class="bg-white rounded-lg p-4 border border-emerald-200">
             <p class="text-sm text-slate-600 mb-1">Application reference</p>
             <p id="applicationReference" class="text-2xl font-bold text-slate-900 font-mono"></p>
-            <p class="text-sm text-slate-600 mt-2">Keep this reference. The MKCA team will contact you with payment instructions.</p>
+            <p class="text-sm text-slate-600 mt-2">Keep this reference. This confirms your application was received, not that payment is complete.</p>
+            <p id="paymentStatus" class="text-sm mt-3" role="status"></p>
             <p id="emailDeliveryStatus" class="text-sm mt-3" role="status"></p>
           </div>
           <a href="index.html" class="btn btn-primary w-full">Return to Home</a>
@@ -200,6 +201,7 @@
     const firstNameInput = document.getElementById('firstName');
     const lastNameInput = document.getElementById('lastName');
     const nrcDocumentInput = document.getElementById('nrcDocument');
+    const paymentStatus = document.getElementById('paymentStatus');
 
     function normalizePhoneNumber(value) {
       const cleaned = String(value || '').replace(/[^0-9+]/g, '');
@@ -255,6 +257,45 @@
     });
 
     phoneInput.addEventListener('blur', formatPhoneOnBlur);
+
+    function setPaymentStatus(message, state) {
+      paymentStatus.textContent = message;
+      paymentStatus.className = 'text-sm mt-3';
+      paymentStatus.classList.add(
+        state === 'success' ? 'text-emerald-700' : state === 'error' ? 'text-red-700' : 'text-sky-700'
+      );
+    }
+
+    async function monitorPaymentStatus(referenceId, applicationReference) {
+      for (let attempt = 0; attempt < 9; attempt += 1) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 7000));
+        }
+
+        try {
+          const response = await fetchApi(`/api/checkout/${encodeURIComponent(referenceId)}/status`, {
+            method: 'GET'
+          });
+          const status = String(response.data?.status || '').toLowerCase();
+
+          if (status === 'successful') {
+            setPaymentStatus('Lipila confirmed your payment. Keep your application reference for your records.', 'success');
+            return;
+          }
+
+          if (status === 'failed') {
+            setPaymentStatus(`Lipila reports that payment failed. Contact support with application reference ${applicationReference}.`, 'error');
+            return;
+          }
+        } catch (error) {
+          console.warn('Unable to verify Lipila payment status:', error);
+          setPaymentStatus(`Your payment request was sent, but its final status could not be verified. Check your phone or contact support with application reference ${applicationReference}.`, 'error');
+          return;
+        }
+      }
+
+      setPaymentStatus(`Payment is still pending. Approve the prompt on your phone. If it does not arrive, contact support with application reference ${applicationReference}.`, 'pending');
+    }
 
     async function handlePaymentSuccess() {
       if (!customerInfoForm.checkValidity()) {
@@ -316,6 +357,7 @@
       payResult.className = 'mt-6 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-800';
       payResult.textContent = 'Submitting your application...';
 
+      let applicationResponse;
       try {
         const nrcDocumentData = await readFileAsDataUrl(nrcFile);
         const productNames = {
@@ -323,7 +365,7 @@
           salary: 'Salary Advance',
           p2p: 'P2P Lending'
         };
-        const applicationResponse = await fetchApi('/api/save-application', {
+        applicationResponse = await fetchApi('/api/save-application', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -343,21 +385,48 @@
             nrcDocumentData
           })
         });
-
-        document.getElementById('applicationReference').textContent = applicationResponse.applicationReference;
-        const emailDeliveryStatus = document.getElementById('emailDeliveryStatus');
-        emailDeliveryStatus.textContent = applicationResponse.emailSent
-          ? `A confirmation email was sent to ${document.getElementById('email').value.trim()}.`
-          : 'Your application was received, but we could not send a confirmation email. The MKCA team will contact you.';
-        emailDeliveryStatus.classList.add(applicationResponse.emailSent ? 'text-emerald-700' : 'text-amber-700');
-        document.getElementById('customerInfoSection').classList.add('hidden');
-        paymentActions.classList.add('hidden');
-        payResult.classList.add('hidden');
-        referenceDisplay.classList.remove('hidden');
       } catch (error) {
         payResult.className = 'mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800';
         payResult.textContent = error.message || 'Unable to save your application. Please try again.';
         payNowButton.disabled = false;
+        return;
+      }
+
+      const applicationReference = applicationResponse.applicationReference;
+      document.getElementById('applicationReference').textContent = applicationReference;
+      const emailDeliveryStatus = document.getElementById('emailDeliveryStatus');
+      emailDeliveryStatus.textContent = applicationResponse.emailSent
+        ? `A confirmation email was sent to ${document.getElementById('email').value.trim()}.`
+        : 'Your application was received, but we could not send a confirmation email.';
+      emailDeliveryStatus.classList.add(applicationResponse.emailSent ? 'text-emerald-700' : 'text-amber-700');
+      document.getElementById('customerInfoSection').classList.add('hidden');
+      paymentActions.classList.add('hidden');
+      payResult.classList.add('hidden');
+      referenceDisplay.classList.remove('hidden');
+      setPaymentStatus('Starting your mobile-money payment request...', 'pending');
+
+      try {
+        const checkoutResponse = await fetchApi('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ applicationReference })
+        });
+        const checkout = checkoutResponse.data;
+
+        if (checkout.status === 'Successful') {
+          setPaymentStatus('Lipila confirmed your payment. Keep your application reference for your records.', 'success');
+          return;
+        }
+
+        if (checkout.status !== 'Pending' || !checkout.referenceId) {
+          throw new Error('Lipila did not return a pending payment reference.');
+        }
+
+        setPaymentStatus(`A mobile-money prompt was sent to ${normalizedPhone}. Approve it on your phone to complete payment.`, 'pending');
+        await monitorPaymentStatus(checkout.referenceId, applicationReference);
+      } catch (error) {
+        console.error('Unable to start Lipila payment:', error);
+        setPaymentStatus(`Your application was received, but payment could not be started. Contact support with application reference ${applicationReference}.`, 'error');
       }
     }
 
