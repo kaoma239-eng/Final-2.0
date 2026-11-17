@@ -68,10 +68,13 @@
     .filters { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(110px, 1fr)) auto auto; align-items: end; gap: 10px; margin: 18px 0; }
     .filter-control { display: grid; gap: 5px; }
     .filter-control label { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .filter-toggle { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .filter-toggle input { width: auto; margin: 0; }
     .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
     .applications-table { min-width: 1420px; }
     .staff-table { min-width: 720px; }
+    .records-table { min-width: 980px; }
     th, td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
     th { background: #f8f9fc; color: #475467; font-size: 11px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
     tbody tr:last-child td { border-bottom: 0; }
@@ -123,9 +126,8 @@
 <body>
   <header class="admin-header">
     <div class="page-width header-content">
-      <a class="brand" href="/" aria-label="Mpangwe Kasonso Chartered Accountants home">
-        <img src="/assets/logos/Bright%20Cyan%20MKCA%20Logo%20Letters.png" alt="Mpangwe Kasonso Chartered Accountants logo">
-        <span>Mpangwe Kasonso Chartered Accountants</span>
+      <a class="brand" href="/" aria-label="MKCA home">
+        <img src="/assets/logos/Bright%20Cyan%20MKCA%20Logo%20Letters.png" alt="MKCA logo">
       </a>
       <div class="brand-title">
         <p>ADMIN PORTAL</p>
@@ -180,6 +182,10 @@
           <p id="metricClaims" class="metric-value">-</p>
         </article>
         <article class="card metric-card">
+          <p class="metric-label">Payment records</p>
+          <p id="metricPayments" class="metric-value">-</p>
+        </article>
+        <article class="card metric-card">
           <p class="metric-label">Premiums recorded</p>
           <p id="metricPremiums" class="metric-value">-</p>
           <p id="metricPremiumCount" class="metric-note">-</p>
@@ -228,6 +234,10 @@
               <option value="100">100</option>
             </select>
           </div>
+          <label id="includeDeletedApplicationsLabel" class="filter-toggle master-admin-only hidden">
+            <input id="includeDeletedApplications" type="checkbox">
+            Show deleted
+          </label>
           <button class="btn btn-primary" type="submit">Apply</button>
           <button id="clearFilters" class="btn btn-secondary" type="button">Clear</button>
         </form>
@@ -249,6 +259,7 @@
                 <th>Submitted</th>
                 <th>Status</th>
                 <th>NRC document</th>
+                <th id="applicationActionsHeader" class="master-admin-only hidden">Actions</th>
               </tr>
             </thead>
             <tbody id="applicationsBody"></tbody>
@@ -260,6 +271,42 @@
           <div class="pagination">
             <button id="previousPage" class="btn btn-secondary" type="button">Previous</button>
             <button id="nextPage" class="btn btn-secondary" type="button">Next</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="otherRecordsPanel" class="card section hidden master-admin-only" aria-labelledby="otherRecordsTitle">
+        <div class="section-heading">
+          <div>
+            <h2 id="otherRecordsTitle">Policies, claims, payments and purchases</h2>
+            <p class="muted">Deleted records can be restored. Hiding payment or purchase records does not reverse or refund a payment.</p>
+          </div>
+          <div class="filter-control">
+            <label for="recordCategory">Record category</label>
+            <select id="recordCategory">
+              <option value="policies">Policies</option>
+              <option value="claims">Claims</option>
+              <option value="payments">Payments</option>
+              <option value="purchases">Purchase records</option>
+            </select>
+          </div>
+        </div>
+        <label class="filter-toggle">
+          <input id="includeDeletedRecords" type="checkbox">
+          Show deleted
+        </label>
+        <div class="table-scroll">
+          <table class="records-table">
+            <thead id="recordsHeader"></thead>
+            <tbody id="recordsBody"></tbody>
+          </table>
+          <div id="recordsEmptyState" class="empty-state hidden">No records found.</div>
+        </div>
+        <div class="table-footer">
+          <span id="recordsPageInfo" class="muted"></span>
+          <div class="pagination">
+            <button id="previousRecordsPage" class="btn btn-secondary" type="button">Previous</button>
+            <button id="nextRecordsPage" class="btn btn-secondary" type="button">Next</button>
           </div>
         </div>
       </section>
@@ -316,10 +363,14 @@
           </form>
 
           <div>
+            <label class="filter-toggle">
+              <input id="includeDeletedStaff" type="checkbox">
+              Show deleted staff
+            </label>
             <div class="table-scroll">
               <table class="staff-table">
                 <thead>
-                  <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Created</th></tr>
+                  <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Created</th><th>Actions</th></tr>
                 </thead>
                 <tbody id="staffUsersBody"></tbody>
               </table>

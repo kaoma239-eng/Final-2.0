@@ -259,7 +259,22 @@ function requireAuth(req, res, next) {
     return res.status(401).json({ success: false, message: 'Authentication required.' });
   }
 
-  return next();
+  if (!dbAvailable || !req.session.user.id) {
+    return next();
+  }
+
+  pool.execute('SELECT deleted_at FROM users WHERE id = ? LIMIT 1', [req.session.user.id])
+    .then(([rows]) => {
+      if (!rows[0] || rows[0].deleted_at) {
+        req.session.destroy(() => {});
+        return res.status(401).json({ success: false, message: 'This account is no longer active.' });
+      }
+      return next();
+    })
+    .catch((error) => {
+      console.error('Authentication account check error:', error);
+      return res.status(503).json({ success: false, message: 'Unable to verify account status.' });
+    });
 }
 
 function requireRole(roles) {
@@ -299,6 +314,24 @@ async function ensureDatabaseIsReady() {
   const isAvailable = await checkDatabaseAvailability();
   if (!isAvailable) {
     throw new Error('MySQL database is not available. The application cannot start without it.');
+  }
+
+  const softDeleteTables = ['users', 'loan_applications', 'policies', 'claims', 'payments', 'purchase_records'];
+  for (const table of softDeleteTables) {
+    const [columns] = await pool.execute(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'deleted_at'`,
+      [table]
+    );
+    if (columns.length === 0) {
+      try {
+        await pool.execute(`ALTER TABLE \`${table}\` ADD COLUMN deleted_at DATETIME NULL`);
+      } catch (error) {
+        if (error.code !== 'ER_DUP_FIELDNAME' && error.errno !== 1060) {
+          throw error;
+        }
+      }
+    }
   }
 }
 
@@ -494,7 +527,7 @@ app.post('/api/auth/login', async (req, res) => {
       `SELECT u.id, u.email, u.full_name, u.password_hash, r.name AS role_name
        FROM users u
        INNER JOIN roles r ON r.id = u.role_id
-       WHERE u.email = ? LIMIT 1`,
+       WHERE u.email = ? AND u.deleted_at IS NULL LIMIT 1`,
       [email]
     );
 
@@ -566,12 +599,12 @@ app.get('/api/admin/overview', requireAuth, requireRole(['super_admin', 'adminis
 
     const connection = await pool.getConnection();
     try {
-      const [applicationCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM loan_applications');
-      const [policyCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM policies');
-      const [paymentCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM payments');
-      const [claimCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM claims');
+      const [applicationCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM loan_applications WHERE deleted_at IS NULL');
+      const [policyCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM policies WHERE deleted_at IS NULL');
+      const [paymentCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM payments WHERE deleted_at IS NULL');
+      const [claimCountRows] = await connection.execute('SELECT COUNT(*) AS total FROM claims WHERE deleted_at IS NULL');
       const [purchaseSummaryRows] = await connection.execute(
-        'SELECT COUNT(*) AS total, COALESCE(SUM(premium_paid), 0) AS premiums FROM purchase_records'
+        'SELECT COUNT(*) AS total, COALESCE(SUM(premium_paid), 0) AS premiums FROM purchase_records WHERE deleted_at IS NULL'
       );
 
       return res.json({
@@ -597,6 +630,48 @@ app.get('/api/admin/overview', requireAuth, requireRole(['super_admin', 'adminis
 const applicationStatuses = new Set(['draft', 'submitted', 'approved', 'rejected', 'paid']);
 const manageableStaffRoles = ['administrator', 'insurance_officer', 'claims_officer', 'finance_officer'];
 const visibleAdminRoles = ['super_admin', ...manageableStaffRoles];
+const adminRecordTables = {
+  applications: { table: 'loan_applications', keyColumn: 'application_reference' },
+  policies: { table: 'policies', keyColumn: 'policy_number' },
+  claims: { table: 'claims', keyColumn: 'claim_reference' },
+  payments: { table: 'payments', keyColumn: 'transaction_reference' },
+  purchases: { table: 'purchase_records', keyColumn: 'reference_number' },
+  staff: { table: 'users', keyColumn: 'id' }
+};
+const adminRecordLists = {
+  policies: {
+    select: `SELECT policy_number AS recordId, user_id AS userId, loan_amount AS loanAmount,
+                    coverage_amount AS coverageAmount, premium_amount AS premiumAmount,
+                    status, issue_date AS recordDate, created_at AS createdAt, deleted_at AS deletedAt
+             FROM policies`,
+    orderBy: 'created_at DESC, policy_number DESC'
+  },
+  claims: {
+    select: `SELECT claim_reference AS recordId, claim_type AS claimType, policy_id AS policyId,
+                    user_id AS userId, status, amount_requested AS amountRequested,
+                    amount_paid AS amountPaid, submitted_at AS recordDate,
+                    submitted_at AS createdAt, deleted_at AS deletedAt
+             FROM claims`,
+    orderBy: 'submitted_at DESC, id DESC'
+  },
+  payments: {
+    select: `SELECT transaction_reference AS recordId, user_id AS userId, policy_id AS policyId,
+                    amount, method, status, processed_at AS processedAt,
+                    created_at AS recordDate, created_at AS createdAt, deleted_at AS deletedAt
+             FROM payments`,
+    orderBy: 'created_at DESC, id DESC'
+  },
+  purchases: {
+    select: `SELECT reference_number AS recordId, customer_name AS customerName,
+                    customer_email AS customerEmail, customer_id AS customerId,
+                    phone_number AS phoneNumber, product_type AS productType,
+                    coverage_amount AS coverageAmount, premium_paid AS premiumPaid,
+                    duration_months AS durationMonths, payment_date AS recordDate,
+                    created_at AS createdAt, deleted_at AS deletedAt
+             FROM purchase_records`,
+    orderBy: 'created_at DESC, id DESC'
+  }
+};
 
 function isValidIsoDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -630,8 +705,15 @@ function parseApplicationFilters(query) {
   };
 }
 
+function parseIncludeDeleted(query) {
+  if (query.includeDeleted === undefined || query.includeDeleted === 'false') {
+    return false;
+  }
+  return query.includeDeleted === 'true' ? true : null;
+}
+
 function buildApplicationWhere(filters) {
-  const conditions = [];
+  const conditions = [filters.includeDeleted ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL'];
   const values = [];
 
   if (filters.status) {
@@ -677,13 +759,15 @@ function mapApplicationRow(row) {
     nrcUploaded: Boolean(row.nrc_uploaded),
     hasNrcDocument: Boolean(row.document_path),
     status: row.status,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    deletedAt: row.deleted_at
   };
 }
 
 function filterLocalApplications(records, filters) {
   const search = filters.search.toLowerCase();
   return records.filter((record) => {
+    if (filters.includeDeleted ? !record.deletedAt : Boolean(record.deletedAt)) return false;
     if (filters.status && record.status !== filters.status) return false;
 
     if (search) {
@@ -721,7 +805,7 @@ async function getAdminApplications(filters, pagination = null) {
       const [rows] = await connection.execute(
         `SELECT application_reference, customer_name, customer_email, phone_number, nrc_number,
                 customer_type, company_name, product_type, insurer_name, loan_amount, coverage_amount,
-                premium_amount, duration_months, age_at_application, nrc_uploaded, document_path, status, created_at
+                premium_amount, duration_months, age_at_application, nrc_uploaded, document_path, status, created_at, deleted_at
          FROM loan_applications${where.sql}
          ORDER BY created_at DESC, application_reference DESC
          LIMIT ${pagination.pageSize} OFFSET ${offset}`,
@@ -759,7 +843,7 @@ async function getAllAdminApplications(filters) {
     const [rows] = await pool.execute(
       `SELECT application_reference, customer_name, customer_email, phone_number, nrc_number,
               customer_type, company_name, product_type, insurer_name, loan_amount, coverage_amount,
-              premium_amount, duration_months, age_at_application, nrc_uploaded, document_path, status, created_at
+              premium_amount, duration_months, age_at_application, nrc_uploaded, document_path, status, created_at, deleted_at
        FROM loan_applications${where.sql}
        ORDER BY created_at DESC, application_reference DESC`,
       where.values
@@ -784,13 +868,17 @@ app.get('/api/admin/users', requireAuth, requireRole(['super_admin']), async (re
     if (!dbAvailable) {
       return res.status(503).json({ success: false, message: 'Database unavailable.' });
     }
+    const includeDeleted = parseIncludeDeleted(req.query);
+    if (includeDeleted === null) {
+      return res.status(400).json({ success: false, message: 'includeDeleted must be true or false.' });
+    }
 
     const rolePlaceholders = visibleAdminRoles.map(() => '?').join(', ');
     const [rows] = await pool.execute(
-      `SELECT u.id, u.full_name, u.email, u.phone, r.name AS role, u.created_at
+      `SELECT u.id, u.full_name, u.email, u.phone, r.name AS role, u.created_at, u.deleted_at
        FROM users u
        INNER JOIN roles r ON r.id = u.role_id
-       WHERE r.name IN (${rolePlaceholders})
+       WHERE r.name IN (${rolePlaceholders}) AND u.deleted_at IS ${includeDeleted ? 'NOT ' : ''}NULL
        ORDER BY u.created_at DESC, u.id DESC`,
       visibleAdminRoles
     );
@@ -803,7 +891,8 @@ app.get('/api/admin/users', requireAuth, requireRole(['super_admin']), async (re
         email: row.email,
         phone: row.phone,
         role: row.role,
-        createdAt: row.created_at
+        createdAt: row.created_at,
+        deletedAt: row.deleted_at
       }))
     });
   } catch (error) {
@@ -880,12 +969,214 @@ app.post('/api/admin/users', requireAuth, requireRole(['super_admin']), async (r
   }
 });
 
+app.get('/api/admin/records/:type', requireAuth, requireRole(['super_admin']), async (req, res) => {
+  try {
+    if (!dbAvailable) {
+      return res.status(503).json({ success: false, message: 'Database unavailable.' });
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(adminRecordLists, req.params.type)) {
+      return res.status(404).json({ success: false, message: 'Record category not found.' });
+    }
+    const recordType = adminRecordLists[req.params.type];
+
+    const includeDeleted = parseIncludeDeleted(req.query);
+    if (includeDeleted === null) {
+      return res.status(400).json({ success: false, message: 'includeDeleted must be true or false.' });
+    }
+    const requestedPage = Number.parseInt(req.query.page, 10);
+    const requestedPageSize = Number.parseInt(req.query.pageSize, 10);
+    const pageSize = Number.isSafeInteger(requestedPageSize) && requestedPageSize > 0
+      ? Math.min(requestedPageSize, 100)
+      : 25;
+    const requestedPageNumber = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const deletedCondition = includeDeleted ? 'deleted_at IS NOT NULL' : 'deleted_at IS NULL';
+    const [countRows] = await pool.execute(
+      `SELECT COUNT(*) AS total FROM ${adminRecordTables[req.params.type].table} WHERE ${deletedCondition}`
+    );
+    const total = Number(countRows[0]?.total || 0);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const page = Math.min(requestedPageNumber, totalPages);
+    const offset = (page - 1) * pageSize;
+    const [rows] = await pool.execute(
+      `${recordType.select} WHERE ${deletedCondition} ORDER BY ${recordType.orderBy} LIMIT ${pageSize} OFFSET ${offset}`
+    );
+
+    return res.json({
+      success: true,
+      records: rows,
+      total,
+      page,
+      pageSize,
+      totalPages
+    });
+  } catch (error) {
+    console.error('Admin record list error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to load records.' });
+  }
+});
+
+app.delete('/api/admin/records/:type/:recordId', requireAuth, requireRole(['super_admin']), async (req, res) => {
+  if (!Object.prototype.hasOwnProperty.call(adminRecordTables, req.params.type)) {
+    return res.status(404).json({ success: false, message: 'Record category not found.' });
+  }
+  const recordType = adminRecordTables[req.params.type];
+  if (!dbAvailable) {
+    return res.status(503).json({ success: false, message: 'Database unavailable.' });
+  }
+
+  const recordId = sanitizeText(req.params.recordId);
+  if (req.params.type === 'staff') {
+    if (!/^[1-9]\d*$/.test(recordId) || !Number.isSafeInteger(Number(recordId))) {
+      return res.status(400).json({ success: false, message: 'A valid staff account ID is required.' });
+    }
+  } else if (!/^[A-Za-z0-9._-]{1,128}$/.test(recordId)) {
+    return res.status(400).json({ success: false, message: 'A valid record ID is required.' });
+  }
+
+  let connection;
+  let transactionStarted = false;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+    transactionStarted = true;
+
+    let existingRows;
+    if (req.params.type === 'staff') {
+      [existingRows] = await connection.execute(
+        `SELECT u.deleted_at, r.name AS role
+         FROM users u INNER JOIN roles r ON r.id = u.role_id
+         WHERE u.id = ? AND r.name IN (${visibleAdminRoles.map(() => '?').join(', ')})
+         LIMIT 1 FOR UPDATE`,
+        [recordId, ...visibleAdminRoles]
+      );
+      if (!existingRows[0]) {
+        await connection.rollback();
+        transactionStarted = false;
+        return res.status(404).json({ success: false, message: 'Staff account not found.' });
+      }
+      if (String(req.session.user.id) === recordId) {
+        await connection.rollback();
+        transactionStarted = false;
+        return res.status(409).json({ success: false, message: 'You cannot delete your own active account.' });
+      }
+      if (existingRows[0].role === 'super_admin') {
+        const [roleRows] = await connection.execute(
+          'SELECT id FROM roles WHERE name = ? LIMIT 1 FOR UPDATE',
+          ['super_admin']
+        );
+        const [activeAdmins] = await connection.execute(
+          'SELECT id FROM users WHERE role_id = ? AND deleted_at IS NULL FOR UPDATE',
+          [roleRows[0].id]
+        );
+        if (activeAdmins.length <= 1) {
+          await connection.rollback();
+          transactionStarted = false;
+          return res.status(409).json({ success: false, message: 'The last active master-admin account cannot be deleted.' });
+        }
+      }
+    } else {
+      [existingRows] = await connection.execute(
+        `SELECT deleted_at FROM ${recordType.table} WHERE ${recordType.keyColumn} = ? LIMIT 1 FOR UPDATE`,
+        [recordId]
+      );
+      if (!existingRows[0]) {
+        await connection.rollback();
+        transactionStarted = false;
+        return res.status(404).json({ success: false, message: 'Record not found.' });
+      }
+    }
+
+    if (existingRows[0].deleted_at) {
+      await connection.rollback();
+      transactionStarted = false;
+      return res.status(409).json({ success: false, message: 'This record is already deleted.' });
+    }
+
+    await connection.execute(
+      `UPDATE ${recordType.table} SET deleted_at = CURRENT_TIMESTAMP WHERE ${recordType.keyColumn} = ?`,
+      [recordId]
+    );
+    await connection.commit();
+    transactionStarted = false;
+    return res.json({ success: true, message: 'Record deleted. Show deleted records to restore it.' });
+  } catch (error) {
+    if (transactionStarted && connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error('Admin record deletion rollback error:', rollbackError);
+      }
+    }
+    console.error('Admin record deletion error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to delete the record.' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+app.post('/api/admin/records/:type/:recordId/restore', requireAuth, requireRole(['super_admin']), async (req, res) => {
+  if (!Object.prototype.hasOwnProperty.call(adminRecordTables, req.params.type)) {
+    return res.status(404).json({ success: false, message: 'Record category not found.' });
+  }
+  const recordType = adminRecordTables[req.params.type];
+  if (!dbAvailable) {
+    return res.status(503).json({ success: false, message: 'Database unavailable.' });
+  }
+
+  const recordId = sanitizeText(req.params.recordId);
+  if (req.params.type === 'staff') {
+    if (!/^[1-9]\d*$/.test(recordId) || !Number.isSafeInteger(Number(recordId))) {
+      return res.status(400).json({ success: false, message: 'A valid staff account ID is required.' });
+    }
+  } else if (!/^[A-Za-z0-9._-]{1,128}$/.test(recordId)) {
+    return res.status(400).json({ success: false, message: 'A valid record ID is required.' });
+  }
+
+  try {
+    const [existingRows] = req.params.type === 'staff'
+      ? await pool.execute(
+        `SELECT u.deleted_at FROM users u INNER JOIN roles r ON r.id = u.role_id
+         WHERE u.id = ? AND r.name IN (${visibleAdminRoles.map(() => '?').join(', ')}) LIMIT 1`,
+        [recordId, ...visibleAdminRoles]
+      )
+      : await pool.execute(
+        `SELECT deleted_at FROM ${recordType.table} WHERE ${recordType.keyColumn} = ? LIMIT 1`,
+        [recordId]
+      );
+    if (!existingRows[0]) {
+      return res.status(404).json({ success: false, message: 'Record not found.' });
+    }
+    if (!existingRows[0].deleted_at) {
+      return res.status(409).json({ success: false, message: 'This record is already active.' });
+    }
+
+    await pool.execute(
+      `UPDATE ${recordType.table} SET deleted_at = NULL WHERE ${recordType.keyColumn} = ?`,
+      [recordId]
+    );
+    return res.json({ success: true, message: 'Record restored.' });
+  } catch (error) {
+    console.error('Admin record restore error:', error);
+    return res.status(500).json({ success: false, message: 'Unable to restore the record.' });
+  }
+});
+
 app.get('/api/admin/applications', requireAuth, requireRole(applicationAdminRoles), async (req, res) => {
   try {
+    const includeDeleted = parseIncludeDeleted(req.query);
+    if (includeDeleted === null) {
+      return res.status(400).json({ success: false, message: 'includeDeleted must be true or false.' });
+    }
+    if (includeDeleted && req.session.user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Only master admins can view deleted records.' });
+    }
+
     const parsed = parseApplicationFilters(req.query);
     if (parsed.error) {
       return res.status(400).json({ success: false, message: parsed.error });
     }
+    parsed.filters.includeDeleted = includeDeleted;
     const requestedPage = Number.parseInt(req.query.page, 10);
     const requestedPageSize = Number.parseInt(req.query.pageSize, 10);
     const pagination = {
@@ -965,13 +1256,15 @@ app.get('/api/admin/applications/:reference/nrc', requireAuth, requireRole(appli
     let documentPath;
     if (dbAvailable) {
       const [rows] = await pool.execute(
-        'SELECT document_path FROM loan_applications WHERE application_reference = ? LIMIT 1',
+        'SELECT document_path FROM loan_applications WHERE application_reference = ? AND deleted_at IS NULL LIMIT 1',
         [sanitizeText(req.params.reference)]
       );
       documentPath = rows[0]?.document_path;
     } else {
       const records = await loadJsonFile(loanApplicationsPath, []);
-      documentPath = records.find((record) => record.applicationReference === req.params.reference)?.documentPath;
+      documentPath = records.find((record) => (
+        record.applicationReference === req.params.reference && !record.deletedAt
+      ))?.documentPath;
     }
 
     if (!documentPath) {
@@ -1198,7 +1491,7 @@ async function getApplicationForPayment(applicationReference) {
       const [rows] = await connection.execute(
         `SELECT application_reference, customer_email, phone_number, product_type, premium_amount
          FROM loan_applications
-         WHERE application_reference = ?
+         WHERE application_reference = ? AND deleted_at IS NULL
          LIMIT 1`,
         [applicationReference]
       );
@@ -1209,7 +1502,9 @@ async function getApplicationForPayment(applicationReference) {
   }
 
   const applications = await loadJsonFile(loanApplicationsPath, []);
-  return applications.find((application) => application.applicationReference === applicationReference) || null;
+  return applications.find((application) => (
+    application.applicationReference === applicationReference && !application.deletedAt
+  )) || null;
 }
 
 app.post('/api/checkout', async (req, res) => {
@@ -1771,7 +2066,10 @@ app.post('/api/create-policy', async (req, res) => {
         );
 
         if (applicationReference) {
-          await connection.execute('UPDATE loan_applications SET status = ? WHERE application_reference = ?', ['approved', applicationReference]);
+          await connection.execute(
+            'UPDATE loan_applications SET status = ? WHERE application_reference = ? AND deleted_at IS NULL',
+            ['approved', applicationReference]
+          );
         }
 
         return res.json({ success: true, policyNumber, message: 'Policy created successfully.' });

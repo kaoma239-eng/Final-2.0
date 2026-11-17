@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS loan_applications (
   status ENUM('draft','submitted','approved','rejected','paid') NOT NULL DEFAULT 'submitted',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
   INDEX idx_application_email (customer_email),
   INDEX idx_application_nrc (nrc_number)
 ) ENGINE=InnoDB;
@@ -121,6 +122,7 @@ CREATE TABLE IF NOT EXISTS policies (
   status ENUM('active','expired','cancelled','pending') NOT NULL DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL,
   FOREIGN KEY (product_id) REFERENCES insurance_products(id) ON DELETE RESTRICT
@@ -167,6 +169,7 @@ CREATE TABLE IF NOT EXISTS claims (
   amount_requested DECIMAL(14,2) NOT NULL,
   amount_paid DECIMAL(14,2) NOT NULL DEFAULT 0,
   notes TEXT NULL,
+  deleted_at DATETIME NULL,
   FOREIGN KEY (policy_id) REFERENCES policies(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -194,6 +197,7 @@ CREATE TABLE IF NOT EXISTS payments (
   status ENUM('pending','completed','failed') NOT NULL DEFAULT 'pending',
   processed_at TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (policy_id) REFERENCES policies(id) ON DELETE SET NULL,
   FOREIGN KEY (premium_id) REFERENCES premiums(id) ON DELETE SET NULL
@@ -249,6 +253,7 @@ CREATE TABLE IF NOT EXISTS purchase_records (
   payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
   INDEX idx_reference_number (reference_number),
   INDEX idx_customer_email (customer_email),
   INDEX idx_customer_type (customer_type),

@@ -68,6 +68,160 @@ test('application records and NRC documents require an authorized session', asyn
   }
 });
 
+test('record listings, deletion and restoration require an authenticated session', async () => {
+  if (!app) {
+    throw new Error('App was not exported');
+  }
+
+  const server = app.listen(0);
+  const { port } = server.address();
+
+  try {
+    const requests = [
+      ['/api/admin/records/policies', 'GET'],
+      ['/api/admin/records/claims', 'GET'],
+      ['/api/admin/records/payments', 'GET'],
+      ['/api/admin/records/purchases', 'GET'],
+      ['/api/admin/records/applications/APP-TEST', 'DELETE'],
+      ['/api/admin/records/staff/1', 'DELETE'],
+      ['/api/admin/records/policies/MKCA-TEST/restore', 'POST']
+    ];
+
+    for (const [route, method] of requests) {
+      const response = await fetch(`http://127.0.0.1:${port}${route}`, { method });
+      assert.equal(response.status, 401, `${method} ${route} should reject unauthenticated requests`);
+    }
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('only a master admin can soft-delete dashboard records', async () => {
+  if (!app || !pool || !ensureDatabaseIsReady) {
+    throw new Error('Server database test dependencies were not exported');
+  }
+
+  const originalGetConnection = pool.getConnection;
+  const originalExecute = pool.execute;
+  const password = 'Integration-test-password';
+  const passwordHash = await argon2.hash(password);
+  const adminEmail = 'staff-admin@example.com';
+  const masterEmail = 'master-admin@example.com';
+  let applicationDeleted = false;
+
+  pool.getConnection = async () => ({
+    ping: async () => {},
+    release() {},
+    async beginTransaction() {},
+    async execute(query) {
+      if (query.startsWith('SELECT deleted_at FROM loan_applications')) {
+        return [[{ deleted_at: applicationDeleted ? new Date() : null }], []];
+      }
+      if (query.startsWith('UPDATE loan_applications SET deleted_at = CURRENT_TIMESTAMP')) {
+        applicationDeleted = true;
+        return [{ affectedRows: 1 }, []];
+      }
+      throw new Error(`Unexpected test database query: ${query}`);
+    },
+    async commit() {},
+    async rollback() {}
+  });
+  pool.execute = async (query, values) => {
+    if (query.includes('information_schema.COLUMNS')) {
+      return [[{ COLUMN_NAME: 'deleted_at' }], []];
+    }
+    if (query.startsWith('SELECT deleted_at FROM users WHERE id')) {
+      return [[{ deleted_at: null }], []];
+    }
+    if (query.startsWith('SELECT deleted_at FROM loan_applications')) {
+      return [[{ deleted_at: applicationDeleted ? new Date() : null }], []];
+    }
+    if (query.startsWith('UPDATE loan_applications SET deleted_at = NULL')) {
+      applicationDeleted = false;
+      return [{ affectedRows: 1 }, []];
+    }
+    if (query.startsWith('SELECT COUNT(*) AS total FROM policies')) {
+      return [[{ total: 1 }], []];
+    }
+    if (query.startsWith('SELECT policy_number AS recordId')) {
+      return [[{
+        recordId: 'MKCA-TEST',
+        userId: 1,
+        loanAmount: '1000.00',
+        coverageAmount: '1000.00',
+        premiumAmount: '30.00',
+        status: 'active',
+        recordDate: '2025-01-01',
+        createdAt: '2025-01-01',
+        deletedAt: null
+      }], []];
+    }
+    if (query.includes('FROM users u') && query.includes('INNER JOIN roles')) {
+      const email = values[0];
+      const isMaster = email === masterEmail;
+      return [[{
+        id: isMaster ? 2 : 1,
+        email,
+        full_name: isMaster ? 'Master Admin' : 'Staff Admin',
+        password_hash: passwordHash,
+        role_name: isMaster ? 'super_admin' : 'administrator'
+      }], []];
+    }
+    throw new Error(`Unexpected test database query: ${query}`);
+  };
+
+  const server = app.listen(0);
+  const { port } = server.address();
+
+  try {
+    await ensureDatabaseIsReady();
+    const login = async (email) => {
+      const response = await fetch(`http://127.0.0.1:${port}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password })
+      });
+      assert.equal(response.status, 200);
+      return response.headers.get('set-cookie').split(';', 1)[0];
+    };
+
+    const staffCookie = await login(adminEmail);
+    const deniedResponse = await fetch(`http://127.0.0.1:${port}/api/admin/records/applications/APP-TEST`, {
+      method: 'DELETE',
+      headers: { Cookie: staffCookie }
+    });
+    assert.equal(deniedResponse.status, 403);
+    assert.equal(applicationDeleted, false);
+
+    const masterCookie = await login(masterEmail);
+    const deletedResponse = await fetch(`http://127.0.0.1:${port}/api/admin/records/applications/APP-TEST`, {
+      method: 'DELETE',
+      headers: { Cookie: masterCookie }
+    });
+    assert.equal(deletedResponse.status, 200);
+    assert.equal((await deletedResponse.json()).success, true);
+    assert.equal(applicationDeleted, true);
+
+    const recordsResponse = await fetch(`http://127.0.0.1:${port}/api/admin/records/policies?page=1&pageSize=25`, {
+      headers: { Cookie: masterCookie }
+    });
+    assert.equal(recordsResponse.status, 200);
+    const recordsResult = await recordsResponse.json();
+    assert.equal(recordsResult.records[0].recordId, 'MKCA-TEST');
+
+    const restoredResponse = await fetch(`http://127.0.0.1:${port}/api/admin/records/applications/APP-TEST/restore`, {
+      method: 'POST',
+      headers: { Cookie: masterCookie }
+    });
+    assert.equal(restoredResponse.status, 200);
+    assert.equal(applicationDeleted, false);
+  } finally {
+    pool.getConnection = originalGetConnection;
+    pool.execute = originalExecute;
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('admin dashboard and its assets are served', async () => {
   if (!app) {
     throw new Error('App was not exported');
@@ -81,14 +235,20 @@ test('admin dashboard and its assets are served', async () => {
     const dashboardHtml = await dashboard.text();
     assert.equal(dashboard.status, 200);
     assert.match(dashboardHtml, /\/assets\/logos\/Bright%20Cyan%20MKCA%20Logo%20Letters\.png/);
-    assert.match(dashboardHtml, /<span>Mpangwe Kasonso Chartered Accountants<\/span>/);
+    assert.match(dashboardHtml, /aria-label="MKCA home"/);
+    assert.doesNotMatch(dashboardHtml, /Mpangwe Kasonso Chartered Accountants/);
     assert.match(dashboardHtml, /\/admin-dashboard\.js/);
     assert.match(dashboardHtml, /Premiums recorded/);
+    assert.match(dashboardHtml, /Policies, claims, payments and purchases/);
+    assert.match(dashboardHtml, /Show deleted staff/);
 
     const script = await fetch(`http://127.0.0.1:${port}/admin-dashboard.js`);
     assert.equal(script.status, 200);
     assert.match(script.headers.get('content-type'), /javascript/);
-    assert.match(await script.text(), /\/api\/admin\/applications\/export\.csv/);
+    const scriptText = await script.text();
+    assert.match(scriptText, /\/api\/admin\/applications\/export\.csv/);
+    assert.match(scriptText, /\/api\/admin\/records\//);
+    assert.match(scriptText, /currentUserRole !== 'super_admin'/);
 
     const logo = await fetch(`http://127.0.0.1:${port}/assets/logos/Bright%20Cyan%20MKCA%20Logo%20Letters.png`);
     assert.equal(logo.status, 200);
@@ -331,6 +491,12 @@ test('admin application pagination uses integer LIMIT values for TiDB', async ()
     }
   });
   pool.execute = async (query) => {
+    if (query.includes('information_schema.COLUMNS')) {
+      return [[{ COLUMN_NAME: 'deleted_at' }], []];
+    }
+    if (query.startsWith('SELECT deleted_at FROM users WHERE id')) {
+      return [[{ deleted_at: null }], []];
+    }
     if (query.includes('FROM users u') && query.includes('INNER JOIN roles')) {
       return [[{
         id: 1,

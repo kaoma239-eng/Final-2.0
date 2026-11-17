@@ -5,11 +5,14 @@ const adminToolbar = document.getElementById('adminToolbar');
 const notice = document.getElementById('notice');
 const applicationsBody = document.getElementById('applicationsBody');
 const staffUsersBody = document.getElementById('staffUsersBody');
+const recordsBody = document.getElementById('recordsBody');
 const ADMIN_IDLE_TIMEOUT_MS = 30_000;
 const SESSION_HEARTBEAT_INTERVAL_MS = 10_000;
 const SESSION_HEARTBEAT_ACTIVITY_WINDOW_MS = 20_000;
 let currentPage = 1;
 let currentPageSize = 25;
+let currentRecordsPage = 1;
+let currentUserRole = '';
 let idleTimeoutId = null;
 let heartbeatIntervalId = null;
 let lastUserActivityAt = 0;
@@ -60,6 +63,7 @@ async function signOut(message = '') {
   dashboardPanel.classList.add('hidden');
   adminToolbar.classList.add('hidden');
   loginPanel.classList.remove('hidden');
+  currentUserRole = '';
   document.getElementById('loginForm').reset();
   lastUserActivityAt = 0;
   logoutInProgress = false;
@@ -122,6 +126,48 @@ function addCell(row, value) {
   return cell;
 }
 
+function addRecordAction(row, type, recordId, deletedAt, refresh) {
+  if (currentUserRole !== 'super_admin') return;
+
+  const cell = document.createElement('td');
+  const button = document.createElement('button');
+  const restoring = Boolean(deletedAt);
+  button.type = 'button';
+  button.className = restoring ? 'btn btn-secondary' : 'btn btn-danger';
+  button.textContent = restoring ? 'Restore' : 'Delete';
+  button.setAttribute('aria-label', `${restoring ? 'Restore' : 'Delete'} ${type} record ${recordId}`);
+  button.addEventListener('click', async () => {
+    if (!restoring) {
+      const paymentWarning = ['payments', 'purchases'].includes(type)
+        ? ' This does not refund or reverse a payment.'
+        : '';
+      if (!window.confirm(`Delete ${type} record ${recordId}? It can be restored later.${paymentWarning}`)) return;
+    }
+
+    button.disabled = true;
+    const url = `/api/admin/records/${encodeURIComponent(type)}/${encodeURIComponent(recordId)}${restoring ? '/restore' : ''}`;
+    let result;
+    try {
+      result = await requestJson(url, { method: restoring ? 'POST' : 'DELETE' });
+    } catch (error) {
+      button.disabled = false;
+      showNotice(error.message);
+      return;
+    }
+
+    try {
+      await Promise.all([refresh(), loadOverview()]);
+      showNotice(result.message, 'success');
+    } catch (error) {
+      showNotice(`${result.message} Dashboard refresh failed: ${error.message}`);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  cell.appendChild(button);
+  row.appendChild(cell);
+}
+
 function getFilterParams() {
   return new URLSearchParams({
     search: document.getElementById('searchFilter').value.trim(),
@@ -136,6 +182,7 @@ async function loadOverview() {
   document.getElementById('metricApplications').textContent = Number(summary.applications || 0).toLocaleString();
   document.getElementById('metricPolicies').textContent = Number(summary.policies || 0).toLocaleString();
   document.getElementById('metricClaims').textContent = Number(summary.claims || 0).toLocaleString();
+  document.getElementById('metricPayments').textContent = Number(summary.payments || 0).toLocaleString();
   document.getElementById('metricPremiums').textContent = formatMoney(summary.recordedPremiums);
   document.getElementById('metricPremiumCount').textContent =
     `${Number(summary.purchaseRecords || 0).toLocaleString()} purchase records`;
@@ -184,6 +231,12 @@ function renderApplications(result) {
     badge.className = `status-badge status-${status.toLowerCase().replace(/[^a-z0-9-]/g, '')}`;
     badge.textContent = status.replace(/_/g, ' ');
     statusCell.appendChild(badge);
+    if (application.deletedAt) {
+      const deleted = document.createElement('span');
+      deleted.className = 'subtext';
+      deleted.textContent = `Deleted ${formatDate(application.deletedAt)}`;
+      statusCell.appendChild(deleted);
+    }
 
     const documentCell = addCell(row, '');
     documentCell.textContent = '';
@@ -197,6 +250,13 @@ function renderApplications(result) {
     } else {
       documentCell.textContent = 'Not uploaded';
     }
+    addRecordAction(
+      row,
+      'applications',
+      application.applicationReference,
+      application.deletedAt,
+      () => loadApplications(currentPage)
+    );
     applicationsBody.appendChild(row);
   });
 }
@@ -207,6 +267,9 @@ async function loadApplications(page = 1) {
   const params = getFilterParams();
   params.set('page', String(currentPage));
   params.set('pageSize', String(currentPageSize));
+  if (currentUserRole === 'super_admin' && document.getElementById('includeDeletedApplications').checked) {
+    params.set('includeDeleted', 'true');
+  }
   const result = await requestJson(`/api/admin/applications?${params.toString()}`);
   currentPage = Number(result.page || 1);
   renderApplications(result);
@@ -241,7 +304,9 @@ async function downloadApplications() {
 }
 
 async function loadStaffAccounts() {
-  const result = await requestJson('/api/admin/users');
+  const params = new URLSearchParams();
+  if (document.getElementById('includeDeletedStaff').checked) params.set('includeDeleted', 'true');
+  const result = await requestJson(`/api/admin/users?${params.toString()}`);
   staffUsersBody.replaceChildren();
   document.getElementById('staffEmptyState').classList.toggle('hidden', result.users.length > 0);
 
@@ -250,10 +315,113 @@ async function loadStaffAccounts() {
     addCell(row, user.fullName);
     addCell(row, user.email);
     addCell(row, user.phone);
-    addCell(row, user.role.replace(/_/g, ' '));
+    const roleCell = addCell(row, user.role.replace(/_/g, ' '));
+    if (user.deletedAt) {
+      const deleted = document.createElement('span');
+      deleted.className = 'subtext';
+      deleted.textContent = `Deleted ${formatDate(user.deletedAt)}`;
+      roleCell.appendChild(deleted);
+    }
     addCell(row, formatDate(user.createdAt));
+    addRecordAction(row, 'staff', user.id, user.deletedAt, loadStaffAccounts);
     staffUsersBody.appendChild(row);
   });
+}
+
+const recordColumns = {
+  policies: [
+    { label: 'Policy number', key: 'recordId' },
+    { label: 'User ID', key: 'userId' },
+    { label: 'Loan amount', key: 'loanAmount', format: 'money' },
+    { label: 'Coverage', key: 'coverageAmount', format: 'money' },
+    { label: 'Premium', key: 'premiumAmount', format: 'money' },
+    { label: 'Status', key: 'status' },
+    { label: 'Issue date', key: 'recordDate', format: 'date' }
+  ],
+  claims: [
+    { label: 'Claim reference', key: 'recordId' },
+    { label: 'Type', key: 'claimType' },
+    { label: 'Policy ID', key: 'policyId' },
+    { label: 'User ID', key: 'userId' },
+    { label: 'Status', key: 'status' },
+    { label: 'Requested', key: 'amountRequested', format: 'money' },
+    { label: 'Paid', key: 'amountPaid', format: 'money' },
+    { label: 'Submitted', key: 'recordDate', format: 'date' }
+  ],
+  payments: [
+    { label: 'Transaction reference', key: 'recordId' },
+    { label: 'User ID', key: 'userId' },
+    { label: 'Policy ID', key: 'policyId' },
+    { label: 'Amount', key: 'amount', format: 'money' },
+    { label: 'Method', key: 'method' },
+    { label: 'Status', key: 'status' },
+    { label: 'Processed', key: 'processedAt', format: 'date' },
+    { label: 'Created', key: 'recordDate', format: 'date' }
+  ],
+  purchases: [
+    { label: 'Reference', key: 'recordId' },
+    { label: 'Customer', key: 'customerName' },
+    { label: 'Email', key: 'customerEmail' },
+    { label: 'NRC / Passport', key: 'customerId' },
+    { label: 'Phone', key: 'phoneNumber' },
+    { label: 'Product', key: 'productType' },
+    { label: 'Coverage', key: 'coverageAmount', format: 'money' },
+    { label: 'Premium', key: 'premiumPaid', format: 'money' },
+    { label: 'Months', key: 'durationMonths' },
+    { label: 'Payment date', key: 'recordDate', format: 'date' }
+  ]
+};
+
+function renderOtherRecords(result, type) {
+  const columns = recordColumns[type];
+  recordsBody.replaceChildren();
+  const header = document.getElementById('recordsHeader');
+  header.replaceChildren();
+  const headerRow = document.createElement('tr');
+  columns.forEach(({ label }) => {
+    const cell = document.createElement('th');
+    cell.textContent = label;
+    headerRow.appendChild(cell);
+  });
+  ['Record state', 'Actions'].forEach((label) => {
+    const cell = document.createElement('th');
+    cell.textContent = label;
+    headerRow.appendChild(cell);
+  });
+  header.appendChild(headerRow);
+
+  const records = result.records || [];
+  records.forEach((record) => {
+    const row = document.createElement('tr');
+    columns.forEach(({ key, format }) => {
+      const value = record[key];
+      addCell(row, format === 'money' ? formatMoney(value) : format === 'date' ? formatDate(value) : value);
+    });
+    addCell(row, record.deletedAt ? `Deleted ${formatDate(record.deletedAt)}` : 'Active');
+    addRecordAction(row, type, record.recordId, record.deletedAt, () => loadOtherRecords(currentRecordsPage));
+    recordsBody.appendChild(row);
+  });
+
+  const total = Number(result.total || 0);
+  const page = Number(result.page || 1);
+  document.getElementById('recordsEmptyState').classList.toggle('hidden', records.length > 0);
+  document.getElementById('recordsPageInfo').textContent =
+    `Showing ${total === 0 ? 0 : (page - 1) * result.pageSize + 1}-${Math.min(page * result.pageSize, total)} of ${total.toLocaleString()} · Page ${page} of ${result.totalPages}`;
+  document.getElementById('previousRecordsPage').disabled = page <= 1;
+  document.getElementById('nextRecordsPage').disabled = page >= Number(result.totalPages || 1);
+}
+
+async function loadOtherRecords(page = 1) {
+  currentRecordsPage = page;
+  const type = document.getElementById('recordCategory').value;
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: '25',
+    includeDeleted: document.getElementById('includeDeletedRecords').checked ? 'true' : 'false'
+  });
+  const result = await requestJson(`/api/admin/records/${encodeURIComponent(type)}?${params.toString()}`);
+  currentRecordsPage = Number(result.page || 1);
+  renderOtherRecords(result, type);
 }
 
 async function acceptUser(user) {
@@ -261,6 +429,7 @@ async function acceptUser(user) {
     throw new Error('This account does not have permission to access the admin dashboard.');
   }
 
+  currentUserRole = user.role;
   document.getElementById('adminName').textContent = user.fullName || user.email;
   loginPanel.classList.add('hidden');
   dashboardPanel.classList.remove('hidden');
@@ -271,17 +440,19 @@ async function acceptUser(user) {
 
   const staffPanel = document.getElementById('staffPanel');
   staffPanel.classList.toggle('hidden', user.role !== 'super_admin');
+  document.getElementById('otherRecordsPanel').classList.toggle('hidden', user.role !== 'super_admin');
+  document.querySelectorAll('.master-admin-only').forEach((element) => {
+    element.classList.toggle('hidden', user.role !== 'super_admin');
+  });
 
   const results = await Promise.allSettled([loadOverview(), loadApplications(1)]);
   const failed = results.find((result) => result.status === 'rejected');
   if (failed) showNotice(failed.reason.message || 'Unable to load dashboard data.');
 
   if (user.role === 'super_admin') {
-    try {
-      await loadStaffAccounts();
-    } catch (error) {
-      showNotice(error.message);
-    }
+    const adminResults = await Promise.allSettled([loadStaffAccounts(), loadOtherRecords(1)]);
+    const adminFailure = adminResults.find((result) => result.status === 'rejected');
+    if (adminFailure) showNotice(adminFailure.reason.message);
   }
 }
 
@@ -323,12 +494,36 @@ document.getElementById('pageSize').addEventListener('change', () => {
   loadApplications(1).catch((error) => showNotice(error.message));
 });
 
+document.getElementById('includeDeletedApplications').addEventListener('change', () => {
+  loadApplications(1).catch((error) => showNotice(error.message));
+});
+
+document.getElementById('includeDeletedStaff').addEventListener('change', () => {
+  loadStaffAccounts().catch((error) => showNotice(error.message));
+});
+
+document.getElementById('includeDeletedRecords').addEventListener('change', () => {
+  loadOtherRecords(1).catch((error) => showNotice(error.message));
+});
+
+document.getElementById('recordCategory').addEventListener('change', () => {
+  loadOtherRecords(1).catch((error) => showNotice(error.message));
+});
+
 document.getElementById('previousPage').addEventListener('click', () => {
   if (currentPage > 1) loadApplications(currentPage - 1).catch((error) => showNotice(error.message));
 });
 
 document.getElementById('nextPage').addEventListener('click', () => {
   loadApplications(currentPage + 1).catch((error) => showNotice(error.message));
+});
+
+document.getElementById('previousRecordsPage').addEventListener('click', () => {
+  if (currentRecordsPage > 1) loadOtherRecords(currentRecordsPage - 1).catch((error) => showNotice(error.message));
+});
+
+document.getElementById('nextRecordsPage').addEventListener('click', () => {
+  loadOtherRecords(currentRecordsPage + 1).catch((error) => showNotice(error.message));
 });
 
 document.getElementById('downloadCsv').addEventListener('click', () => {
@@ -341,11 +536,9 @@ document.getElementById('refreshDashboard').addEventListener('click', async () =
   const failed = results.find((result) => result.status === 'rejected');
   if (failed) showNotice(failed.reason.message || 'Unable to refresh dashboard data.');
   if (document.getElementById('staffPanel').classList.contains('hidden') === false) {
-    try {
-      await loadStaffAccounts();
-    } catch (error) {
-      showNotice(error.message);
-    }
+    const adminResults = await Promise.allSettled([loadStaffAccounts(), loadOtherRecords(currentRecordsPage)]);
+    const adminFailure = adminResults.find((result) => result.status === 'rejected');
+    if (adminFailure) showNotice(adminFailure.reason.message);
   }
 });
 
