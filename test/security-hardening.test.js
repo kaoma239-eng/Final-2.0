@@ -120,6 +120,67 @@ test('application submission rejects missing customer and NRC details', async ()
   }
 });
 
+test('application submission only accepts cover durations from 1 to 12 months', async () => {
+  if (!app) {
+    throw new Error('App was not exported');
+  }
+
+  const server = app.listen(0);
+  const { port } = server.address();
+  const applicationData = {
+    customerType: 'individual',
+    customerName: 'Test Applicant',
+    customerEmail: 'applicant@example.com',
+    customerId: '123456/11/1',
+    phoneNumber: '0977123456',
+    productType: 'Loan Protection',
+    insurerName: 'Sanlam Life Assurance',
+    coverageAmount: 1000,
+    premiumPaid: 30,
+    age: 20,
+    nrcDocumentData: 'data:image/png;base64,AAAA'
+  };
+
+  try {
+    for (const duration of [1, 12]) {
+      const response = await fetch(`http://127.0.0.1:${port}/api/save-application`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...applicationData, durationMonths: duration })
+      });
+
+      assert.equal(response.status, 400);
+      assert.match((await response.json()).message, /NRC file is invalid/);
+    }
+
+    for (const duration of [0, 13]) {
+      const response = await fetch(`http://127.0.0.1:${port}/api/save-application`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...applicationData, durationMonths: duration })
+      });
+
+      assert.equal(response.status, 400);
+      assert.match((await response.json()).message, /application details are incomplete/i);
+    }
+
+    const invalidNrcResponse = await fetch(`http://127.0.0.1:${port}/api/save-application`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...applicationData,
+        customerId: '12345678/11/1',
+        durationMonths: 12
+      })
+    });
+
+    assert.equal(invalidNrcResponse.status, 400);
+    assert.match((await invalidNrcResponse.json()).message, /application details are incomplete/i);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('security headers are configured', async () => {
   if (!app) {
     throw new Error('App was not exported');

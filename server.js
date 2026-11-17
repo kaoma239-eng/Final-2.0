@@ -388,6 +388,7 @@ const rootStaticFiles = new Set([
   'sitemap.xml',
   'styles.css',
   'script.js',
+  'nrc-formatter.js',
   'premium-calculator.js',
   'company-logos.js',
   'admin-dashboard.js'
@@ -1452,7 +1453,7 @@ app.post('/api/save-application', async (req, res) => {
     const numericPremium = Number(premiumPaid);
     const numericDuration = Number(durationMonths);
 
-    if (!safeCustomerName || !/^\S+@\S+\.\S+$/.test(safeCustomerEmail) || !/^\d{6,9}\/\d{2}\/\d{1,2}$/.test(safeCustomerId) || !isValidZambianMobileNumber(normalizedPhone) || !productType || !insurerName || !Number.isFinite(numericCoverage) || numericCoverage < 1000 || !Number.isFinite(numericPremium) || numericPremium <= 0 || !Number.isInteger(numericDuration) || numericDuration <= 0) {
+    if (!safeCustomerName || !/^\S+@\S+\.\S+$/.test(safeCustomerEmail) || !/^\d{6}\/\d{2}\/\d$/.test(safeCustomerId) || !isValidZambianMobileNumber(normalizedPhone) || !productType || !insurerName || !Number.isFinite(numericCoverage) || numericCoverage < 1000 || !Number.isFinite(numericPremium) || numericPremium <= 0 || !Number.isInteger(numericDuration) || numericDuration < 1 || numericDuration > 12) {
       return res.status(400).json({ success: false, message: 'Customer application details are incomplete' });
     }
 

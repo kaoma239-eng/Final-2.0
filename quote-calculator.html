@@ -6,7 +6,7 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="icon" type="image/png" sizes="144x144" href="/favicon.png" />
   <title>Quote Calculator | eDIP</title>
-  <meta name="description" content="Use eDIP to calculate one-month loan protection cover for salary advances and P2P lending under Sanlam Life Assurance." />
+  <meta name="description" content="Use eDIP to estimate loan protection premiums for cover periods from 1 to 12 months under Sanlam Life Assurance." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -73,6 +73,7 @@
               <div>
                 <label class="block text-sm font-medium text-slate-700 mb-2">Insurance Product</label>
                 <div id="productNameDisplay" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900">Loan Protection</div>
+                <p id="productDescription" class="mt-2 text-sm text-slate-600">For qualifying loans. If the insured borrower dies while cover is active, the benefit helps pay the outstanding loan balance, subject to policy terms.</p>
                 <input type="hidden" id="productSelect" value="life" />
               </div>
               <div>
@@ -99,9 +100,9 @@
                 <input type="number" id="coverageInput" min="1000" step="1000" value="1000" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-slate-700 mb-2">Duration (months)</label>
-                <input type="number" id="durationInput" min="1" max="1" value="1" readonly aria-readonly="true" title="Cover duration is fixed at 1 month" class="w-full rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-slate-700 cursor-not-allowed focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100" />
-                <p class="text-xs text-slate-500 mt-2" id="durationNote">Fixed at 1 month. The cover pays the outstanding balance if the borrower dies.</p>
+                <label class="block text-sm font-medium text-slate-700 mb-2" for="durationInput">Cover period (months)</label>
+                <input type="number" id="durationInput" min="1" max="12" step="1" value="1" title="Choose a cover period from 1 to 12 months" class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 focus:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-100" />
+                <p class="text-xs text-slate-500 mt-2" id="durationNote">Choose any whole number from 1 to 12 months. The cover applies to the outstanding loan or advance balance, subject to policy terms.</p>
               </div>
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="rounded-3xl bg-slate-100 p-5">
@@ -109,7 +110,7 @@
                   <p id="monthlyPremium" class="mt-3 text-3xl font-semibold text-slate-900">ZMW 450</p>
                 </div>
                 <div class="rounded-3xl bg-slate-100 p-5">
-                  <p class="text-sm uppercase tracking-[0.2em] text-slate-500">One-Month Total</p>
+                  <p class="text-sm uppercase tracking-[0.2em] text-slate-500">Total Premium</p>
                   <p id="totalCost" class="mt-3 text-3xl font-semibold text-slate-900">ZMW 450</p>
                 </div>
               </div>
@@ -125,7 +126,7 @@
                   <div><strong>Coverage:</strong> ZMW <span id="sumCoverage"></span></div>
                   <div><strong>Duration (months):</strong> <span id="sumDuration"></span></div>
                   <div><strong>Monthly Premium:</strong> ZMW <span id="sumMonthly"></span></div>
-                  <div><strong>One-Month Total:</strong> ZMW <span id="sumTotal"></span></div>
+                  <div><strong>Total Premium:</strong> ZMW <span id="sumTotal"></span></div>
                 </div>
                 <p class="text-sm text-slate-600 mb-4">You will provide your customer information on the next page.</p>
                 <div class="flex gap-3">
@@ -143,7 +144,7 @@
       <div class="grid gap-8">
         <div class="card">
           <h2 class="text-2xl font-bold mb-5">Insurance Provider Selection</h2>
-          <p class="text-sm text-slate-500 mb-4">Salary Advance and P2P products are priced with embedded insurer rates. Loan Protection is structured as a monthly cover on the protected loan amount.</p>
+          <p class="text-sm text-slate-500 mb-4">The calculator shows the monthly premium and the total for your selected cover period of 1 to 12 months.</p>
           <div class="grid gap-4">
             <div class="rounded-2xl border border-slate-200 p-5">
               <div class="flex items-center justify-between mb-4">
@@ -174,6 +175,11 @@
       salary: 'Salary Advance',
       p2p: 'P2P Lending'
     };
+    const PRODUCT_DESCRIPTIONS = {
+      life: 'For qualifying loans. If the insured borrower dies while cover is active, the benefit helps pay the outstanding loan balance, subject to policy terms.',
+      salary: 'For an employer-provided salary advance. If the insured employee dies while cover is active, the benefit helps clear the unpaid advance balance, subject to policy terms.',
+      p2p: 'For loans made directly between individuals. If the borrower dies while cover is active, the benefit helps repay the outstanding balance to the lender, subject to policy terms.'
+    };
 
     const productSelect = document.getElementById('productSelect');
     const insurerSelect = document.getElementById('insurerSelect');
@@ -185,33 +191,34 @@
     const totalEl = document.getElementById('totalCost');
     const coverageValueEl = document.getElementById('coverageValue');
     const productNameDisplay = document.getElementById('productNameDisplay');
-    const FIXED_DURATION = 1;
+    const productDescription = document.getElementById('productDescription');
+    const MAX_DURATION = 12;
 
     const selectButtons = document.querySelectorAll('.select-insurer');
-    function lockDurationField() {
-      durationInput.min = 1;
-      durationInput.max = FIXED_DURATION;
-      durationInput.value = FIXED_DURATION;
-      durationInput.readOnly = true;
-      durationInput.setAttribute('aria-readonly', 'true');
-      durationInput.title = 'Cover duration is fixed at 1 month';
+    function getDuration() {
+      const duration = Number(durationInput.value);
+      if (!Number.isInteger(duration)) return 1;
+      return Math.min(MAX_DURATION, Math.max(1, duration));
+    }
+
+    function normalizeDurationInput() {
+      durationInput.value = String(getDuration());
     }
 
     function refreshQuote() {
       const selectedProduct = productSelect.value || 'life';
-      lockDurationField();
+      const duration = getDuration();
       if (productNameDisplay) {
         productNameDisplay.textContent = PRODUCT_LABELS[selectedProduct] || 'Loan Protection';
       }
-      const durationNote = document.getElementById('durationNote');
-      durationNote.textContent = 'Fixed at 1 month. The cover pays the outstanding balance if the borrower dies.';
+      productDescription.textContent = PRODUCT_DESCRIPTIONS[selectedProduct] || PRODUCT_DESCRIPTIONS.life;
       const quote = calculatePremium({
         product: selectedProduct,
         insurer: insurerSelect.value,
         age: Number(ageInput.value) || 35,
         gender: genderSelect.value,
         coverage: Number(coverageInput.value) || 100000,
-        duration: FIXED_DURATION
+        duration
       });
 
       monthlyEl.textContent = quote.monthlyPremium.toLocaleString();
@@ -219,10 +226,15 @@
       coverageValueEl.textContent = quote.coverageValue.toLocaleString();
     }
 
-    [productSelect, insurerSelect, ageInput, genderSelect, coverageInput].forEach(el => {
+    [productSelect, insurerSelect, ageInput, genderSelect, coverageInput, durationInput].forEach(el => {
       el.addEventListener('input', refreshQuote);
       el.addEventListener('change', refreshQuote);
     });
+    durationInput.addEventListener('change', () => {
+      normalizeDurationInput();
+      refreshQuote();
+    });
+    durationInput.addEventListener('blur', normalizeDurationInput);
 
     selectButtons.forEach(button => {
       button.addEventListener('click', () => {
@@ -239,13 +251,14 @@
     const proceedPay = document.getElementById('proceedPay');
 
     function openSummary() {
+      normalizeDurationInput();
       const quote = calculatePremium({
         product: productSelect.value,
         insurer: insurerSelect.value,
         age: Number(ageInput.value) || 35,
         gender: genderSelect.value,
         coverage: Number(coverageInput.value) || 100000,
-        duration: FIXED_DURATION
+        duration: getDuration()
       });
       document.getElementById('sumProduct').textContent = PRODUCT_LABELS[productSelect.value] || 'Loan Protection';
       document.getElementById('sumInsurer').textContent = insurerSelect.options[insurerSelect.selectedIndex].text;
@@ -266,13 +279,14 @@
     closeSummary.addEventListener('click', closeSummaryModal);
 
     proceedPay.addEventListener('click', () => {
+      normalizeDurationInput();
       const quote = calculatePremium({
         product: productSelect.value,
         insurer: insurerSelect.value,
         age: Number(ageInput.value) || 35,
         gender: genderSelect.value,
         coverage: Number(coverageInput.value) || 100000,
-        duration: FIXED_DURATION
+        duration: getDuration()
       });
       const params = new URLSearchParams({
         product: productSelect.value,
@@ -280,7 +294,7 @@
         insuranceType: insurerSelect.options[insurerSelect.selectedIndex].text,
         age: ageInput.value,
         coverage: quote.coverageValue,
-        duration: FIXED_DURATION,
+        duration: getDuration(),
         amount: quote.totalCost
       });
       window.location.href = `payment.html?${params.toString()}`;

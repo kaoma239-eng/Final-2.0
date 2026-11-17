@@ -53,10 +53,10 @@
             </div>
             <div>
               <label for="customerId" class="block text-sm font-medium mb-1">
-                <span class="inline-flex items-center gap-1">NRC / ID Number <span class="text-red-600 text-base font-bold">*</span></span>
+                <span class="inline-flex items-center gap-1">NRC Number <span class="text-red-600 text-base font-bold">*</span></span>
               </label>
-              <input type="text" id="customerId" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="12345678/11/1" required>
-              <p class="mt-1 text-xs text-slate-500">Use the format: 12345678/11/1</p>
+              <input type="text" id="customerId" maxlength="11" inputmode="numeric" autocomplete="off" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="123456/78/9" required>
+              <p class="mt-1 text-xs text-slate-500">Use the format xxxxxx/xx/x (for example: 123456/78/9).</p>
             </div>
             <div>
               <label for="nrcDocument" class="block text-sm font-medium mb-1">Upload NRC <span class="text-red-600">*</span></label>
@@ -117,6 +117,7 @@
     </div>
   </main>
 
+  <script src="/nrc-formatter.js"></script>
   <script>
     const API_BASE_URLS = window.location.protocol === 'file:'
       ? ['http://localhost:3000', 'http://127.0.0.1:3000']
@@ -216,8 +217,16 @@
 
     function isValidNrcNumber(value) {
       const cleaned = String(value || '').trim();
-      return /^\d{6,9}\/\d{2}\/\d{1,2}$/.test(cleaned);
+      return /^\d{6}\/\d{2}\/\d$/.test(cleaned);
     }
+
+    customerIdInput.addEventListener('input', () => {
+      const formatted = formatNrcInput(customerIdInput.value, customerIdInput.selectionStart);
+      if (formatted.value !== customerIdInput.value) {
+        customerIdInput.value = formatted.value;
+        customerIdInput.setSelectionRange(formatted.caretPosition, formatted.caretPosition);
+      }
+    });
 
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
@@ -280,7 +289,7 @@
 
       const rawNrc = customerIdInput.value.trim();
       if (!isValidNrcNumber(rawNrc)) {
-        alert('Please enter a valid NRC in the format 12345678/11/1');
+        alert('Please enter a valid NRC in the format xxxxxx/xx/x, for example 123456/78/9');
         customerIdInput.focus();
         return;
       }

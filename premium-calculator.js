@@ -135,14 +135,8 @@ function validateParams(params) {
     errors.push('Coverage amount must be between ZMW 1,000 and ZMW 5,000,000');
   }
 
-  if (params.product === 'salary' || params.product === 'p2p') {
-    if (params.duration < 1 || params.duration > 12) {
-      errors.push('Loan duration must be between 1 and 12 months');
-    }
-  } else {
-    if (params.duration < 1 || params.duration > 120) {
-      errors.push('Duration must be between 1 and 120 months');
-    }
+  if (!Number.isInteger(params.duration) || params.duration < 1 || params.duration > 12) {
+    errors.push('Cover duration must be a whole number between 1 and 12 months');
   }
 
   return {
