@@ -122,7 +122,7 @@
   <script>
     const API_BASE_URLS = window.location.protocol === 'file:'
       ? ['http://localhost:3000', 'http://127.0.0.1:3000']
-      : [window.location.origin, 'http://localhost:3000', 'http://127.0.0.1:3000'];
+      : [window.location.origin];
 
     if (window.location.protocol === 'file:') {
       const warningText = 'You are opening this page from file://. API calls will try localhost and 127.0.0.1 on port 3000.';
@@ -133,17 +133,27 @@
       let lastError;
       for (const baseUrl of API_BASE_URLS) {
         const url = `${baseUrl}${path}`;
+        let res;
         try {
-          const res = await fetch(url, options);
-          if (!res.ok) {
-            const body = await res.text();
-            throw new Error(`HTTP ${res.status}: ${body}`);
-          }
-          return await res.json();
+          res = await fetch(url, options);
         } catch (err) {
           lastError = err;
           console.warn(`API request failed for ${url}:`, err);
+          continue;
         }
+
+        if (!res.ok) {
+          let message = `Request failed (HTTP ${res.status}).`;
+          if ((res.headers.get('content-type') || '').includes('application/json')) {
+            const body = await res.json();
+            if (typeof body.message === 'string' && body.message) {
+              message = body.message;
+            }
+          }
+          throw new Error(message);
+        }
+
+        return await res.json();
       }
       throw lastError;
     }

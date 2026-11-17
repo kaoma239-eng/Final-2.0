@@ -100,10 +100,13 @@ test('backend CORS allows the production website and Vercel domain', async () =>
 test('payment page starts checkout after saving and checks the provider status', () => {
   const paymentPage = fs.readFileSync(path.join(__dirname, '..', 'payment.html'), 'utf8');
   const inlineScript = [...paymentPage.matchAll(/<script>([\s\S]*?)<\/script>/g)].pop()?.[1];
+  const apiBaseConfig = paymentPage.match(/const API_BASE_URLS = ([\s\S]*?);/);
 
   assert.match(paymentPage, /fetchApi\('\/api\/checkout'/);
   assert.match(paymentPage, /\/api\/checkout\/\$\{encodeURIComponent\(referenceId\)\}\/status/);
   assert.match(paymentPage, /applicationResponse = await fetchApi\('\/api\/save-application'/);
+  assert.ok(apiBaseConfig, 'Expected API base URLs to be configured');
+  assert.match(apiBaseConfig[1], /:\s*\[window\.location\.origin\]/);
   assert.ok(inlineScript, 'Expected the page to include its checkout script');
   assert.doesNotThrow(() => new Function(inlineScript));
 });
