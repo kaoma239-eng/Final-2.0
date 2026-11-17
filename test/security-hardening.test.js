@@ -115,6 +115,7 @@ test('application submission rejects missing customer and NRC details', async ()
     });
 
     assert.equal(response.status, 400, 'Incomplete applications should be rejected');
+    assert.equal((await response.json()).message, 'Select an individual or company customer type.');
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -161,7 +162,7 @@ test('application submission only accepts cover durations from 1 to 12 months', 
       });
 
       assert.equal(response.status, 400);
-      assert.match((await response.json()).message, /application details are incomplete/i);
+      assert.match((await response.json()).message, /cover duration from 1 to 12 months/i);
     }
 
     const invalidNrcResponse = await fetch(`http://127.0.0.1:${port}/api/save-application`, {
@@ -175,7 +176,16 @@ test('application submission only accepts cover durations from 1 to 12 months', 
     });
 
     assert.equal(invalidNrcResponse.status, 400);
-    assert.match((await invalidNrcResponse.json()).message, /application details are incomplete/i);
+    assert.match((await invalidNrcResponse.json()).message, /NRC number must use the format/i);
+
+    const invalidQuoteResponse = await fetch(`http://127.0.0.1:${port}/api/save-application`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...applicationData, coverageAmount: 0, durationMonths: 12 })
+    });
+
+    assert.equal(invalidQuoteResponse.status, 400);
+    assert.match((await invalidQuoteResponse.json()).message, /Quote coverage is invalid/i);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

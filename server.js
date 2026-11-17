@@ -1558,16 +1558,41 @@ app.post('/api/save-application', async (req, res) => {
     const safeCustomerEmail = sanitizeText(customerEmail).toLowerCase();
     const safeCustomerId = sanitizeText(customerId);
     const normalizedPhone = formatZambianPhoneNumber(phoneNumber);
-    const safeCustomerType = ['individual', 'company'].includes(customerType) ? customerType : 'individual';
+    const safeProductType = sanitizeText(productType);
+    const safeInsurerName = sanitizeText(insurerName);
     const numericCoverage = Number(coverageAmount);
     const numericPremium = Number(premiumPaid);
     const numericDuration = Number(durationMonths);
 
-    if (!safeCustomerName || !/^\S+@\S+\.\S+$/.test(safeCustomerEmail) || !/^\d{6}\/\d{2}\/\d$/.test(safeCustomerId) || !isValidZambianMobileNumber(normalizedPhone) || !productType || !insurerName || !Number.isFinite(numericCoverage) || numericCoverage < 1000 || !Number.isFinite(numericPremium) || numericPremium <= 0 || !Number.isInteger(numericDuration) || numericDuration < 1 || numericDuration > 12) {
-      return res.status(400).json({ success: false, message: 'Customer application details are incomplete' });
+    if (!['individual', 'company'].includes(customerType)) {
+      return res.status(400).json({ success: false, message: 'Select an individual or company customer type.' });
+    }
+    if (!safeCustomerName) {
+      return res.status(400).json({ success: false, message: 'Enter your full name.' });
+    }
+    if (!/^\S+@\S+\.\S+$/.test(safeCustomerEmail)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
+    }
+    if (!/^\d{6}\/\d{2}\/\d$/.test(safeCustomerId)) {
+      return res.status(400).json({ success: false, message: 'NRC number must use the format xxxxxx/xx/x.' });
+    }
+    if (!isValidZambianMobileNumber(normalizedPhone)) {
+      return res.status(400).json({ success: false, message: 'Enter a valid Zambian mobile number.' });
+    }
+    if (!safeProductType || !safeInsurerName) {
+      return res.status(400).json({ success: false, message: 'Quote product details are missing. Return to the quote calculator and generate a quote.' });
+    }
+    if (!Number.isFinite(numericCoverage) || numericCoverage < 1000) {
+      return res.status(400).json({ success: false, message: 'Quote coverage is invalid. Return to the quote calculator and generate a quote.' });
+    }
+    if (!Number.isFinite(numericPremium) || numericPremium <= 0) {
+      return res.status(400).json({ success: false, message: 'Quote premium is invalid. Return to the quote calculator and generate a quote.' });
+    }
+    if (!Number.isInteger(numericDuration) || numericDuration < 1 || numericDuration > 12) {
+      return res.status(400).json({ success: false, message: 'Choose a cover duration from 1 to 12 months.' });
     }
 
-    if (safeCustomerType === 'company' && !sanitizeText(companyName)) {
+    if (customerType === 'company' && !sanitizeText(companyName)) {
       return res.status(400).json({ success: false, message: 'Company name is required for company applications.' });
     }
 
@@ -1589,7 +1614,7 @@ app.post('/api/save-application', async (req, res) => {
       return res.status(400).json({ success: false, message: 'NRC file is invalid or exceeds the 5 MB limit.' });
     }
 
-    const normalizedInsurerName = normalizeSanlamName(sanitizeText(insurerName));
+    const normalizedInsurerName = normalizeSanlamName(safeInsurerName);
     if (normalizedInsurerName !== 'Sanlam Life Assurance') {
       return res.status(400).json({ success: false, message: 'Only Sanlam Life Assurance is available on this platform' });
     }
@@ -1602,13 +1627,13 @@ app.post('/api/save-application', async (req, res) => {
     const storedDocumentPath = path.join('data', 'application-documents', storedFileName);
     const applicationRecord = {
       applicationReference,
-      customerType: safeCustomerType,
+      customerType,
       customerName: safeCustomerName,
       companyName: companyName ? sanitizeText(companyName) : null,
       customerEmail: safeCustomerEmail,
       customerId: safeCustomerId,
       phoneNumber: normalizedPhone,
-      productType: sanitizeText(productType),
+      productType: safeProductType,
       insurerName: normalizedInsurerName,
       loanAmount: Number(loanAmount || numericCoverage),
       coverageAmount: numericCoverage,
@@ -1638,7 +1663,7 @@ app.post('/api/save-application', async (req, res) => {
             applicationRecord.customerEmail,
             applicationRecord.phoneNumber,
             applicationRecord.customerId,
-            safeCustomerType,
+            customerType,
             applicationRecord.companyName,
             applicationRecord.productType,
             normalizedInsurerName,

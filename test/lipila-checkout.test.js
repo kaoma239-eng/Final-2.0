@@ -105,6 +105,7 @@ test('payment page starts checkout after saving and checks the provider status',
   assert.match(paymentPage, /fetchApi\('\/api\/checkout'/);
   assert.match(paymentPage, /\/api\/checkout\/\$\{encodeURIComponent\(referenceId\)\}\/status/);
   assert.match(paymentPage, /applicationResponse = await fetchApi\('\/api\/save-application'/);
+  assert.match(paymentPage, /Your quote is missing or invalid/);
   assert.ok(apiBaseConfig, 'Expected API base URLs to be configured');
   assert.match(apiBaseConfig[1], /:\s*\[window\.location\.origin\]/);
   assert.ok(inlineScript, 'Expected the page to include its checkout script');
