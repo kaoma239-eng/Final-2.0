@@ -405,6 +405,15 @@ test('all pages use the root MKCA favicon and expose crawler rules', async () =>
       const html = await response.text();
       assert.match(html, /<link rel="icon" type="image\/x-icon" href="\/favicon\.ico"/);
       assert.match(html, /<link rel="icon" type="image\/png" sizes="144x144" href="\/favicon\.png"/);
+      if (pagePath === '/') {
+        assert.match(html, /href="services\.html" class="btn btn-primary btn-lg">Our Services<\/a>/);
+        assert.match(html, /href="products\.html" class="btn btn-outline btn-lg[^"]*">Insurance<\/a>/);
+        assert.match(html, /href="products\.html">Insurance<\/a>/);
+        assert.match(html, /Arbitration/);
+      }
+      if (pagePath === '/services') {
+        assert.match(html, /Arbitration/);
+      }
     }
 
     const ico = await fetch(`http://127.0.0.1:${port}/favicon.ico`);
