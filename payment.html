@@ -94,7 +94,7 @@
 
       <!-- Action Buttons -->
       <div class="flex gap-3 mb-4" id="paymentActions">
-        <button id="payNow" class="btn btn-primary flex-1">Submit Application &amp; Pay</button>
+        <button id="payNow" class="btn btn-primary flex-1">Submit Application</button>
         <a href="quote-calculator.html" class="btn btn-outline">Back</a>
       </div>
 
@@ -109,7 +109,7 @@
             <p class="text-sm text-slate-600 mb-1">Application reference</p>
             <p id="applicationReference" class="text-2xl font-bold text-slate-900 font-mono"></p>
             <p class="text-sm text-slate-600 mt-2">Keep this reference. This confirms your application was received, not that payment is complete.</p>
-            <p id="paymentStatus" class="text-sm mt-3" role="status"></p>
+            <p id="applicationStatus" class="text-sm mt-3" role="status"></p>
             <p id="emailDeliveryStatus" class="text-sm mt-3" role="status"></p>
           </div>
           <a href="index.html" class="btn btn-primary w-full">Return to Home</a>
@@ -211,7 +211,7 @@
     const firstNameInput = document.getElementById('firstName');
     const lastNameInput = document.getElementById('lastName');
     const nrcDocumentInput = document.getElementById('nrcDocument');
-    const paymentStatus = document.getElementById('paymentStatus');
+    const applicationStatus = document.getElementById('applicationStatus');
 
     function normalizePhoneNumber(value) {
       const cleaned = String(value || '').replace(/[^0-9+]/g, '');
@@ -268,46 +268,15 @@
 
     phoneInput.addEventListener('blur', formatPhoneOnBlur);
 
-    function setPaymentStatus(message, state) {
-      paymentStatus.textContent = message;
-      paymentStatus.className = 'text-sm mt-3';
-      paymentStatus.classList.add(
+    function setApplicationStatus(message, state) {
+      applicationStatus.textContent = message;
+      applicationStatus.className = 'text-sm mt-3';
+      applicationStatus.classList.add(
         state === 'success' ? 'text-emerald-700' : state === 'error' ? 'text-red-700' : 'text-sky-700'
       );
     }
 
-    async function monitorPaymentStatus(referenceId, applicationReference) {
-      for (let attempt = 0; attempt < 9; attempt += 1) {
-        if (attempt > 0) {
-          await new Promise((resolve) => setTimeout(resolve, 7000));
-        }
-
-        try {
-          const response = await fetchApi(`/api/checkout/${encodeURIComponent(referenceId)}/status`, {
-            method: 'GET'
-          });
-          const status = String(response.data?.status || '').toLowerCase();
-
-          if (status === 'successful') {
-            setPaymentStatus('Lipila confirmed your payment. Keep your application reference for your records.', 'success');
-            return;
-          }
-
-          if (status === 'failed') {
-            setPaymentStatus(`Lipila reports that payment failed. Contact support with application reference ${applicationReference}.`, 'error');
-            return;
-          }
-        } catch (error) {
-          console.warn('Unable to verify Lipila payment status:', error);
-          setPaymentStatus(`Your payment request was sent, but its final status could not be verified. Check your phone or contact support with application reference ${applicationReference}.`, 'error');
-          return;
-        }
-      }
-
-      setPaymentStatus(`Payment is still pending. Approve the prompt on your phone. If it does not arrive, contact support with application reference ${applicationReference}.`, 'pending');
-    }
-
-    async function handlePaymentSuccess() {
+    async function handleApplicationSubmission() {
       const quoteCoverage = Number(data.coverage);
       const quoteDuration = Number(data.duration);
       const quotePremium = Number(data.amount);
@@ -426,34 +395,10 @@
       paymentActions.classList.add('hidden');
       payResult.classList.add('hidden');
       referenceDisplay.classList.remove('hidden');
-      setPaymentStatus('Starting your mobile-money payment request...', 'pending');
-
-      try {
-        const checkoutResponse = await fetchApi('/api/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ applicationReference })
-        });
-        const checkout = checkoutResponse.data;
-
-        if (checkout.status === 'Successful') {
-          setPaymentStatus('Lipila confirmed your payment. Keep your application reference for your records.', 'success');
-          return;
-        }
-
-        if (checkout.status !== 'Pending' || !checkout.referenceId) {
-          throw new Error('Lipila did not return a pending payment reference.');
-        }
-
-        setPaymentStatus(`A mobile-money prompt was sent to ${normalizedPhone}. Approve it on your phone to complete payment.`, 'pending');
-        await monitorPaymentStatus(checkout.referenceId, applicationReference);
-      } catch (error) {
-        console.error('Unable to start Lipila payment:', error);
-        setPaymentStatus(`Your application was received, but payment could not be started. Contact support with application reference ${applicationReference}.`, 'error');
-      }
+      setApplicationStatus('Your application has been received. MKCA will contact you about payment and next steps.', 'pending');
     }
 
-    payNowButton.addEventListener('click', handlePaymentSuccess);
+    payNowButton.addEventListener('click', handleApplicationSubmission);
   </script>
 </body>
 </html>

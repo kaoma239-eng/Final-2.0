@@ -97,14 +97,15 @@ test('backend CORS allows the production website and Vercel domain', async () =>
   });
 });
 
-test('payment page starts checkout after saving and checks the provider status', () => {
+test('application page saves the application without starting checkout', () => {
   const paymentPage = fs.readFileSync(path.join(__dirname, '..', 'payment.html'), 'utf8');
   const inlineScript = [...paymentPage.matchAll(/<script>([\s\S]*?)<\/script>/g)].pop()?.[1];
   const apiBaseConfig = paymentPage.match(/const API_BASE_URLS = ([\s\S]*?);/);
 
-  assert.match(paymentPage, /fetchApi\('\/api\/checkout'/);
-  assert.match(paymentPage, /\/api\/checkout\/\$\{encodeURIComponent\(referenceId\)\}\/status/);
   assert.match(paymentPage, /applicationResponse = await fetchApi\('\/api\/save-application'/);
+  assert.match(paymentPage, /Submit Application<\/button>/);
+  assert.match(paymentPage, /MKCA will contact you about payment and next steps/);
+  assert.doesNotMatch(paymentPage, /\/api\/checkout|Lipila|mobile-money prompt/i);
   assert.match(paymentPage, /Your quote is missing or invalid/);
   assert.ok(apiBaseConfig, 'Expected API base URLs to be configured');
   assert.match(apiBaseConfig[1], /:\s*\[window\.location\.origin\]/);

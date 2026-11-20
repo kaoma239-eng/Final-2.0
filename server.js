@@ -1377,7 +1377,7 @@ async function sendApplicationConfirmationEmail(application) {
   await sendTransactionalEmail({
     recipientEmail: application.customerEmail,
     subject: 'eDIP Application Received',
-    text: `Dear ${application.customerName},\n\nWe have received your insurance application. Your application reference is ${application.applicationReference}.\nProduct: ${application.productType}\nInsurer: ${application.insurerName}\nCoverage amount: ZMW ${coverageAmount}\nQuoted premium: ZMW ${premiumAmount}\nDuration: ${durationMonths} month(s)\n\nThis email confirms receipt of your application only, not payment. Follow the mobile-money prompt shown after submission and wait for Lipila's payment confirmation. If no prompt arrives, contact the eDIP team with your application reference.\n\nRegards,\neDIP`,
+    text: `Dear ${application.customerName},\n\nWe have received your insurance application. Your application reference is ${application.applicationReference}.\nProduct: ${application.productType}\nInsurer: ${application.insurerName}\nCoverage amount: ZMW ${coverageAmount}\nQuoted premium: ZMW ${premiumAmount}\nDuration: ${durationMonths} month(s)\n\nThis email confirms receipt of your application only, not payment. MKCA will contact you about payment and next steps.\n\nRegards,\neDIP`,
     html: `<p>Dear ${customerName},</p>
            <p>We have received your insurance application. Your application reference is <strong>${applicationReference}</strong>.</p>
            <p>Product: <strong>${productType}</strong><br />
@@ -1385,7 +1385,7 @@ async function sendApplicationConfirmationEmail(application) {
            Coverage amount: <strong>ZMW ${coverageAmount}</strong><br />
            Quoted premium: <strong>ZMW ${premiumAmount}</strong><br />
            Duration: <strong>${durationMonths} month(s)</strong></p>
-           <p>This email confirms receipt of your application only, not payment. Follow the mobile-money prompt shown after submission and wait for Lipila's payment confirmation. If no prompt arrives, contact the eDIP team with your application reference.</p>
+           <p>This email confirms receipt of your application only, not payment. MKCA will contact you about payment and next steps.</p>
            <p>Regards,<br/>eDIP</p>`
   });
 }

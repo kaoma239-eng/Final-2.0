@@ -49,6 +49,8 @@ test('application confirmation is sent through Resend with its reference', async
     assert.deepEqual(request[1].to, ['customer@example.com']);
     assert.equal(request[1].subject, 'eDIP Application Received');
     assert.match(request[1].text, /APP-2026-123456/);
+    assert.match(request[1].text, /MKCA will contact you about payment and next steps/);
+    assert.doesNotMatch(request[1].text, /Lipila|mobile-money prompt/i);
     assert.match(request[1].html, /APP-2026-123456/);
     assert.match(request[1].html, /Taylor &lt;Customer&gt;/);
     assert.equal(request[2].headers.Authorization, 'Bearer test-resend-key');
