@@ -36,9 +36,7 @@ services:
         sync: false
       - key: ADMIN_EMAIL
         value: admin@mkca.local
-      - key: ZEPTO_API_URL
-        value: https://cpaas.zoho.com/v1.1/email
-      - key: ZEPTO_API_KEY
+      - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
         value: info@mkcharteredaccountants.co

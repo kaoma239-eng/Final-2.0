@@ -5,7 +5,6 @@ const fs = require('fs');
 const fsPromises = require('fs').promises;
 const crypto = require('crypto');
 const axios = require('axios');
-const nodemailer = require('nodemailer');
 const mysql = require('mysql2/promise');
 const PDFDocument = require('pdfkit');
 const helmet = require('helmet');
@@ -42,7 +41,6 @@ const claimDocumentsPath = path.join(dataDir, 'claim_documents.json');
 const logosDir = path.join(__dirname, 'assets', 'logos');
 
 let dbAvailable = false;
-let mailTransporter = null;
 
 // Database connection pool
 const pool = mysql.createPool({
@@ -1321,83 +1319,40 @@ function createCertificateNumber() {
   return `CERT-${year}-${sequence}`;
 }
 
-function createTransporter() {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error('EMAIL_USER and EMAIL_PASS must be set in the .env file');
-  }
-
-  const port = Number(process.env.EMAIL_PORT || 465);
-  const secure = String(process.env.EMAIL_SECURE || (port === 465)).toLowerCase() === 'true';
-  const emailUser = process.env.EMAIL_USER.trim();
-  const emailPass = process.env.EMAIL_PASS.trim();
-
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.zeptomail.com',
-    port,
-    secure,
-    auth: {
-      user: emailUser,
-      pass: emailPass
-    }
-  });
-}
-
-function getMailTransporter() {
-  if (!mailTransporter) {
-    mailTransporter = createTransporter();
-  }
-
-  return mailTransporter;
-}
-
-async function sendTransactionalEmail({ recipientEmail, subject, text, html, transporter }) {
-  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+async function sendTransactionalEmail({ recipientEmail, subject, text, html }) {
+  const fromAddress = process.env.EMAIL_FROM;
   const fromName = process.env.EMAIL_FROM_NAME || 'eDIP';
-  const apiKey = (process.env.ZEPTO_API_KEY || process.env.API_KEY)?.trim();
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
 
   if (!fromAddress) {
     throw new Error('EMAIL_FROM must be configured to send email.');
   }
-
-  if (transporter) {
-    const from = `"${fromName}" <${fromAddress}>`;
-    await transporter.sendMail({ from, to: recipientEmail, subject, text, html });
-    return;
+  if (!resendApiKey) {
+    throw new Error('RESEND_API_KEY must be configured to send email.');
   }
 
-  if (apiKey) {
-    const endpoint = process.env.ZEPTO_API_URL || 'https://cpaas.zoho.com/v1.1/email';
-    try {
-      await axios.post(endpoint, {
-        from: { address: fromAddress, name: fromName },
-        to: [{ email_address: { address: recipientEmail } }],
-        subject,
-        textbody: text,
-        htmlbody: html
-      }, {
-        headers: {
-          Authorization: `Zoho-enczapikey ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 15000
-      });
-    } catch (error) {
-      const responseData = error.response?.data;
-      const detail = typeof responseData === 'string'
-        ? responseData
-        : responseData?.message || responseData?.error?.message || responseData?.error || responseData?.code;
-      const status = error.response?.status ? `HTTP ${error.response.status}` : error.code;
-      throw new Error(`Zoho CPaaS email API failed${status ? ` (${status})` : ''}: ${String(detail || error.message).slice(0, 300)}`);
-    }
-    return;
+  try {
+    await axios.post('https://api.resend.com/emails', {
+      from: `"${fromName}" <${fromAddress}>`,
+      to: [recipientEmail],
+      subject,
+      text,
+      html
+    }, {
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 15000
+    });
+  } catch (error) {
+    const responseData = error.response?.data;
+    const detail = typeof responseData === 'string'
+      ? responseData
+      : responseData?.message || responseData?.error?.message || responseData?.error || responseData?.code;
+    const status = error.response?.status ? `HTTP ${error.response.status}` : error.code;
+    throw new Error(`Resend email API failed${status ? ` (${status})` : ''}: ${String(detail || error.message).slice(0, 300)}`);
   }
-
-  if (isProduction) {
-    throw new Error('ZEPTO_API_KEY (or API_KEY) is required for production email. Generate an API key in your Zoho CPaaS agent settings; Render Free blocks SMTP ports.');
-  }
-
-  const from = `"${fromName}" <${fromAddress}>`;
-  await getMailTransporter().sendMail({ from, to: recipientEmail, subject, text, html });
 }
 
 function escapeHtml(value) {
@@ -1410,7 +1365,7 @@ function escapeHtml(value) {
   })[character]);
 }
 
-async function sendApplicationConfirmationEmail(application, transporter) {
+async function sendApplicationConfirmationEmail(application) {
   const customerName = escapeHtml(application.customerName);
   const applicationReference = escapeHtml(application.applicationReference);
   const productType = escapeHtml(application.productType);
@@ -1431,8 +1386,7 @@ async function sendApplicationConfirmationEmail(application, transporter) {
            Quoted premium: <strong>ZMW ${premiumAmount}</strong><br />
            Duration: <strong>${durationMonths} month(s)</strong></p>
            <p>This email confirms receipt of your application only, not payment. Follow the mobile-money prompt shown after submission and wait for Lipila's payment confirmation. If no prompt arrives, contact the eDIP team with your application reference.</p>
-           <p>Regards,<br/>eDIP</p>`,
-    transporter
+           <p>Regards,<br/>eDIP</p>`
   });
 }
 

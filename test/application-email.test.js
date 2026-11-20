@@ -3,118 +3,104 @@ const assert = require('node:assert/strict');
 const axios = require('axios');
 const { sendApplicationConfirmationEmail } = require('../server');
 
-test('application confirmation is sent to the submitted email with its reference', async () => {
-  let message;
-  await sendApplicationConfirmationEmail({
-    customerEmail: 'customer@example.com',
-    customerName: 'Taylor <Customer>',
-    applicationReference: 'APP-2026-123456',
-    productType: 'Loan Protection',
-    insurerName: 'Sanlam Life Assurance',
-    coverageAmount: 25000,
-    premiumAmount: 750,
-    durationMonths: 12
-  }, {
-    async sendMail(mail) {
-      message = mail;
-    }
-  });
+const application = {
+  customerEmail: 'customer@example.com',
+  customerName: 'Taylor <Customer>',
+  applicationReference: 'APP-2026-123456',
+  productType: 'Loan Protection',
+  insurerName: 'Sanlam Life Assurance',
+  coverageAmount: 25000,
+  premiumAmount: 750,
+  durationMonths: 12
+};
 
-  assert.equal(message.to, 'customer@example.com');
-  assert.equal(message.subject, 'eDIP Application Received');
-  assert.match(message.from, /eDIP/);
-  assert.match(message.text, /APP-2026-123456/);
-  assert.match(message.html, /APP-2026-123456/);
-  assert.match(message.html, /Taylor &lt;Customer&gt;/);
-});
-
-test('application confirmation uses Zoho CPaaS API with the eDIP sender', async () => {
-  const originalPost = axios.post;
-  const originalEnvironment = {
-    ZEPTO_API_KEY: process.env.ZEPTO_API_KEY,
-    API_KEY: process.env.API_KEY,
-    ZEPTO_API_URL: process.env.ZEPTO_API_URL,
+function saveEmailEnvironment() {
+  return {
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
     EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME
   };
+}
+
+function restoreEmailEnvironment(environment) {
+  for (const [key, value] of Object.entries(environment)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+}
+
+test('application confirmation is sent through Resend with its reference', async () => {
+  const originalPost = axios.post;
+  const originalEnvironment = saveEmailEnvironment();
   let request;
-  delete process.env.ZEPTO_API_KEY;
-  process.env.API_KEY = 'test-api-key';
-  process.env.ZEPTO_API_URL = 'https://cpaas.example.test/v1.1/email';
+  process.env.RESEND_API_KEY = 'test-resend-key';
   process.env.EMAIL_FROM = 'info@mkcharteredaccountants.co';
   process.env.EMAIL_FROM_NAME = 'eDIP';
   axios.post = async (...args) => {
     request = args;
-    return { data: { message: 'OK' } };
+    return { data: { id: 'email_test_123' } };
   };
 
   try {
-    await sendApplicationConfirmationEmail({
-      customerEmail: 'customer@example.com',
-      customerName: 'Taylor',
-      applicationReference: 'APP-2026-123456',
-      productType: 'Loan Protection',
-      insurerName: 'Sanlam Life Assurance',
-      coverageAmount: 25000,
-      premiumAmount: 750,
-      durationMonths: 12
-    });
+    await sendApplicationConfirmationEmail(application);
 
-    assert.equal(request[0], 'https://cpaas.example.test/v1.1/email');
-    assert.equal(request[1].from.address, 'info@mkcharteredaccountants.co');
-    assert.equal(request[1].from.name, 'eDIP');
-    assert.deepEqual(request[1].to, [{ email_address: { address: 'customer@example.com' } }]);
+    assert.equal(request[0], 'https://api.resend.com/emails');
+    assert.equal(request[1].from, '"eDIP" <info@mkcharteredaccountants.co>');
+    assert.deepEqual(request[1].to, ['customer@example.com']);
     assert.equal(request[1].subject, 'eDIP Application Received');
-    assert.equal(request[2].headers.Authorization, 'Zoho-enczapikey test-api-key');
+    assert.match(request[1].text, /APP-2026-123456/);
+    assert.match(request[1].html, /APP-2026-123456/);
+    assert.match(request[1].html, /Taylor &lt;Customer&gt;/);
+    assert.equal(request[2].headers.Authorization, 'Bearer test-resend-key');
   } finally {
     axios.post = originalPost;
-    for (const [key, value] of Object.entries(originalEnvironment)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
+    restoreEmailEnvironment(originalEnvironment);
   }
 });
 
-test('Zoho CPaaS failures include safe response details without API credentials', async () => {
+test('Resend failures include safe response details without API credentials', async () => {
   const originalPost = axios.post;
-  const originalEnvironment = {
-    ZEPTO_API_KEY: process.env.ZEPTO_API_KEY,
-    API_KEY: process.env.API_KEY,
-    EMAIL_FROM: process.env.EMAIL_FROM,
-    EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME
-  };
-  process.env.ZEPTO_API_KEY = 'test-secret-key';
+  const originalEnvironment = saveEmailEnvironment();
+  process.env.RESEND_API_KEY = 'test-secret-key';
   process.env.EMAIL_FROM = 'info@mkcharteredaccountants.co';
   process.env.EMAIL_FROM_NAME = 'eDIP';
   axios.post = async () => {
     const error = new Error('Request failed with status code 500');
-    error.response = { status: 500, data: { message: 'Sender is not authorized' } };
+    error.response = { status: 500, data: { message: 'Sender domain is not verified' } };
     throw error;
   };
 
   try {
     await assert.rejects(
-      sendApplicationConfirmationEmail({
-        customerEmail: 'customer@example.com',
-        customerName: 'Taylor',
-        applicationReference: 'APP-2026-123456',
-        productType: 'Loan Protection',
-        insurerName: 'Sanlam Life Assurance',
-        coverageAmount: 25000,
-        premiumAmount: 750,
-        durationMonths: 12
-      }),
+      sendApplicationConfirmationEmail(application),
       (error) => {
-        assert.match(error.message, /HTTP 500.*Sender is not authorized/);
+        assert.match(error.message, /Resend email API failed \(HTTP 500\).*Sender domain is not verified/);
         assert.doesNotMatch(error.message, /test-secret-key/);
         return true;
       }
     );
   } finally {
     axios.post = originalPost;
-    for (const [key, value] of Object.entries(originalEnvironment)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
+    restoreEmailEnvironment(originalEnvironment);
+  }
+});
+
+test('email sending fails explicitly when the Resend API key is missing', async () => {
+  const originalPost = axios.post;
+  const originalEnvironment = saveEmailEnvironment();
+  delete process.env.RESEND_API_KEY;
+  process.env.EMAIL_FROM = 'info@mkcharteredaccountants.co';
+  axios.post = async () => {
+    throw new Error('Resend should not be called without an API key');
+  };
+
+  try {
+    await assert.rejects(
+      sendApplicationConfirmationEmail(application),
+      /RESEND_API_KEY must be configured/
+    );
+  } finally {
+    axios.post = originalPost;
+    restoreEmailEnvironment(originalEnvironment);
   }
 });
