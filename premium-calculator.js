@@ -131,8 +131,8 @@ function validateParams(params) {
     errors.push('Gender must be male or female');
   }
 
-  if (params.coverage < 1000 || params.coverage > 5000000) {
-    errors.push('Coverage amount must be between ZMW 1,000 and ZMW 5,000,000');
+  if (params.coverage < 500 || params.coverage > 5000000) {
+    errors.push('Coverage amount must be between ZMW 500 and ZMW 5,000,000');
   }
 
   if (!Number.isInteger(params.duration) || params.duration < 1 || params.duration > 12) {

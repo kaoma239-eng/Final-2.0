@@ -1831,8 +1831,8 @@ app.post('/api/save-application', async (req, res) => {
     if (!safeProductType || !safeInsurerName) {
       return res.status(400).json({ success: false, message: 'Quote product details are missing. Return to the quote calculator and generate a quote.' });
     }
-    if (!Number.isFinite(numericCoverage) || numericCoverage < 1000) {
-      return res.status(400).json({ success: false, message: 'Quote coverage is invalid. Return to the quote calculator and generate a quote.' });
+    if (!Number.isFinite(numericCoverage) || numericCoverage < 500) {
+      return res.status(400).json({ success: false, message: 'Quote coverage must be at least ZMW 500. Return to the quote calculator and generate a quote.' });
     }
     if (!Number.isFinite(numericPremium) || numericPremium <= 0) {
       return res.status(400).json({ success: false, message: 'Quote premium is invalid. Return to the quote calculator and generate a quote.' });

@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS insurance_products (
   name VARCHAR(128) NOT NULL,
   description TEXT NOT NULL,
   base_rate DECIMAL(7,5) NOT NULL,
-  minimum_coverage DECIMAL(14,2) NOT NULL DEFAULT 1000.00,
+  minimum_coverage DECIMAL(14,2) NOT NULL DEFAULT 500.00,
   coverage_multiplier DECIMAL(5,2) NOT NULL DEFAULT 1.00,
   insurer_name VARCHAR(128) NOT NULL DEFAULT 'Sanlam Life Assurance',
   status ENUM('active','inactive') NOT NULL DEFAULT 'active',
@@ -266,7 +266,7 @@ VALUES (
   'Loan Protection',
   'Monthly death-only cover for protected loan balances. Premium is calculated as 3% of the protected loan amount, with age loading from age 20.',
   0.03000,
-  1000.00,
+  500.00,
   1.00,
   'Sanlam Life Assurance',
   'active'

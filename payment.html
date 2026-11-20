@@ -281,11 +281,13 @@
       const quoteDuration = Number(data.duration);
       const quotePremium = Number(data.amount);
       if (!['life', 'salary', 'p2p'].includes(data.product)
-        || !Number.isFinite(quoteCoverage) || quoteCoverage < 1000
+        || !Number.isFinite(quoteCoverage) || quoteCoverage < 500
         || !Number.isInteger(quoteDuration) || quoteDuration < 1 || quoteDuration > 12
         || !Number.isFinite(quotePremium) || quotePremium <= 0) {
         payResult.className = 'mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800';
-        payResult.textContent = 'Your quote is missing or invalid. Return to the quote calculator and generate a valid quote before submitting.';
+        payResult.textContent = Number.isFinite(quoteCoverage) && quoteCoverage < 500
+          ? 'Coverage must be at least ZMW 500. Return to the quote calculator and enter a valid coverage amount.'
+          : 'Your quote is missing or invalid. Return to the quote calculator and generate a valid quote before submitting.';
         payResult.classList.remove('hidden');
         return;
       }

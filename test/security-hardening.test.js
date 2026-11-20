@@ -281,7 +281,7 @@ test('application submission rejects missing customer and NRC details', async ()
   }
 });
 
-test('application submission only accepts cover durations from 1 to 12 months', async () => {
+test('application submission validates quote coverage and cover duration', async () => {
   if (!app) {
     throw new Error('App was not exported');
   }
@@ -314,6 +314,15 @@ test('application submission only accepts cover durations from 1 to 12 months', 
       assert.match((await response.json()).message, /NRC file is invalid/);
     }
 
+    const minimumCoverageResponse = await fetch(`http://127.0.0.1:${port}/api/save-application`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...applicationData, coverageAmount: 500, durationMonths: 12 })
+    });
+
+    assert.equal(minimumCoverageResponse.status, 400);
+    assert.match((await minimumCoverageResponse.json()).message, /NRC file is invalid/);
+
     for (const duration of [0, 13]) {
       const response = await fetch(`http://127.0.0.1:${port}/api/save-application`, {
         method: 'POST',
@@ -345,7 +354,16 @@ test('application submission only accepts cover durations from 1 to 12 months', 
     });
 
     assert.equal(invalidQuoteResponse.status, 400);
-    assert.match((await invalidQuoteResponse.json()).message, /Quote coverage is invalid/i);
+    assert.match((await invalidQuoteResponse.json()).message, /Quote coverage must be at least ZMW 500/i);
+
+    const belowMinimumCoverageResponse = await fetch(`http://127.0.0.1:${port}/api/save-application`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...applicationData, coverageAmount: 499, durationMonths: 12 })
+    });
+
+    assert.equal(belowMinimumCoverageResponse.status, 400);
+    assert.match((await belowMinimumCoverageResponse.json()).message, /Quote coverage must be at least ZMW 500/i);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
