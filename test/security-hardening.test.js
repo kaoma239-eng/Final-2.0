@@ -457,10 +457,11 @@ test('all pages use the root MKCA favicon and expose crawler rules', async () =>
       assert.match(html, /<link rel="icon" type="image\/x-icon" href="\/favicon\.ico"/);
       assert.match(html, /<link rel="icon" type="image\/png" sizes="144x144" href="\/favicon\.png"/);
       if (pagePath === '/') {
-        assert.match(html, /href="services\.html" class="btn btn-primary btn-lg">Our Services<\/a>/);
-        assert.match(html, /href="products\.html" class="btn btn-outline btn-lg[^"]*">Insurance<\/a>/);
-        assert.match(html, /href="products\.html">Insurance<\/a>/);
-        assert.doesNotMatch(html, /href="contact\.html" class="btn btn-primary btn-sm">Contact Us<\/a>/);
+        assert.match(html, /href="\/services" class="btn btn-primary btn-lg">Our Services<\/a>/);
+        assert.match(html, /href="\/products" class="btn btn-outline btn-lg[^"]*">Insurance<\/a>/);
+        assert.match(html, /href="\/products">Insurance<\/a>/);
+        assert.doesNotMatch(html, /href="\/contact" class="btn btn-primary btn-sm">Contact Us<\/a>/);
+        assert.doesNotMatch(html, /href="(?:index|about|services|products|quote-calculator|claims|contact)\.html/);
         assert.match(html, /Arbitration/);
       }
       if (pagePath === '/services') {
