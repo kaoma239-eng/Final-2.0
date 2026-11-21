@@ -418,6 +418,9 @@ const canonicalHtmlPaths = new Map([
   ['/about.html', '/about'],
   ['/services.html', '/services'],
   ['/products.html', '/products'],
+  ['/loan-protection.html', '/loan-protection'],
+  ['/salary-advance.html', '/salary-advance'],
+  ['/p2p-lending.html', '/p2p-lending'],
   ['/quote-calculator.html', '/quote-calculator'],
   ['/claims.html', '/claims'],
   ['/contact.html', '/contact'],
@@ -442,6 +445,9 @@ const rootStaticFiles = new Set([
   'quote-calculator.html',
   'contact.html',
   'products.html',
+  'loan-protection.html',
+  'salary-advance.html',
+  'p2p-lending.html',
   'claims.html',
   'payment.html',
   'payment-success.html',
@@ -471,6 +477,18 @@ app.get('/services', (req, res) => {
 
 app.get('/products', (req, res) => {
   res.sendFile(path.join(__dirname, 'products.html'));
+});
+
+app.get('/loan-protection', (req, res) => {
+  res.sendFile(path.join(__dirname, 'loan-protection.html'));
+});
+
+app.get('/salary-advance', (req, res) => {
+  res.sendFile(path.join(__dirname, 'salary-advance.html'));
+});
+
+app.get('/p2p-lending', (req, res) => {
+  res.sendFile(path.join(__dirname, 'p2p-lending.html'));
 });
 
 app.get('/quote-calculator', (req, res) => {

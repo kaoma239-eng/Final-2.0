@@ -50,6 +50,45 @@ test('public aliases redirect to canonical URLs and unknown pages return 404', a
   }
 });
 
+test('product landing pages have crawlable canonical URLs and matching quote links', async () => {
+  if (!app) {
+    throw new Error('App was not exported');
+  }
+
+  const products = [
+    { path: '/loan-protection', file: 'loan-protection.html', title: 'Loan Protection Insurance in Zambia', quote: 'life', topic: 'Loan Protection' },
+    { path: '/salary-advance', file: 'salary-advance.html', title: 'Salary Advance Protection Cover in Zambia', quote: 'salary', topic: 'Salary Advance' },
+    { path: '/p2p-lending', file: 'p2p-lending.html', title: 'Peer-to-Peer Loan Protection in Zambia', quote: 'p2p', topic: 'Peer-to-Peer' }
+  ];
+  const server = app.listen(0);
+  const { port } = server.address();
+
+  try {
+    for (const product of products) {
+      const response = await fetch(`http://127.0.0.1:${port}${product.path}`);
+      assert.equal(response.status, 200, `${product.path} should be served`);
+      const html = await response.text();
+      assert.match(html, new RegExp(`<title>${product.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\| eDIP<\\/title>`));
+      assert.match(html, new RegExp(`<link rel="canonical" href="https:\\/\\/www\\.mkcharteredaccountants\\.co${product.path}"`));
+      assert.match(html, new RegExp(`href="\\/quote-calculator\\?product=${product.quote}"`));
+      assert.match(html, new RegExp(`<h1[^>]*>${product.topic}`));
+
+      const aliasResponse = await fetch(`http://127.0.0.1:${port}${product.path}.html`, { redirect: 'manual' });
+      assert.equal(aliasResponse.status, 308);
+      assert.equal(aliasResponse.headers.get('location'), product.path);
+    }
+
+    const sitemapResponse = await fetch(`http://127.0.0.1:${port}/sitemap.xml`);
+    const sitemap = await sitemapResponse.text();
+    assert.equal(sitemapResponse.status, 200);
+    for (const product of products) {
+      assert.match(sitemap, new RegExp(`https:\\/\\/www\\.mkcharteredaccountants\\.co${product.path}(?:<|\\s)`));
+    }
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('admin routes require an authenticated session', async () => {
   if (!app) {
     throw new Error('App was not exported');
