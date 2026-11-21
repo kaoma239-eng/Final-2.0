@@ -17,6 +17,39 @@ test('server exports an Express app', () => {
   assert.equal(typeof app.use, 'function');
 });
 
+test('public aliases redirect to canonical URLs and unknown pages return 404', async () => {
+  if (!app) {
+    throw new Error('App was not exported');
+  }
+
+  const server = app.listen(0);
+  const { port } = server.address();
+
+  try {
+    const aliasResponse = await fetch(`http://127.0.0.1:${port}/insurance/quote`, {
+      redirect: 'manual'
+    });
+    assert.equal(aliasResponse.status, 308);
+    assert.equal(aliasResponse.headers.get('location'), '/quote-calculator');
+
+    const callbackResponse = await fetch(`http://127.0.0.1:${port}/payment/callback`, {
+      redirect: 'manual'
+    });
+    assert.equal(callbackResponse.status, 308);
+    assert.equal(callbackResponse.headers.get('location'), '/payment-callback');
+
+    const missingPageResponse = await fetch(`http://127.0.0.1:${port}/page-that-does-not-exist`);
+    assert.equal(missingPageResponse.status, 404);
+    assert.match(await missingPageResponse.text(), /Page Not Found/);
+
+    const missingApiResponse = await fetch(`http://127.0.0.1:${port}/api/not-a-real-endpoint`);
+    assert.equal(missingApiResponse.status, 404);
+    assert.match(missingApiResponse.headers.get('content-type'), /application\/json/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test('admin routes require an authenticated session', async () => {
   if (!app) {
     throw new Error('App was not exported');

@@ -413,6 +413,30 @@ app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
+const canonicalHtmlPaths = new Map([
+  ['/index.html', '/'],
+  ['/about.html', '/about'],
+  ['/services.html', '/services'],
+  ['/products.html', '/products'],
+  ['/quote-calculator.html', '/quote-calculator'],
+  ['/claims.html', '/claims'],
+  ['/contact.html', '/contact'],
+  ['/payment.html', '/payment'],
+  ['/payment-callback.html', '/payment-callback'],
+  ['/payment-success.html', '/payment-success'],
+  ['/payment-failed.html', '/payment-failed'],
+  ['/payment-cancelled.html', '/payment-cancelled'],
+  ['/admin.html', '/admin']
+]);
+
+app.use((req, res, next) => {
+  const canonicalPath = canonicalHtmlPaths.get(req.path);
+  if (req.method === 'GET' && canonicalPath) {
+    return res.redirect(308, `${canonicalPath}${req.originalUrl.slice(req.path.length)}`);
+  }
+  return next();
+});
+
 const rootStaticFiles = new Set([
   'index.html',
   'quote-calculator.html',
@@ -445,29 +469,26 @@ app.get('/services', (req, res) => {
   res.sendFile(path.join(__dirname, 'services.html'));
 });
 
-app.get('/insurance', (req, res) => {
+app.get('/products', (req, res) => {
   res.sendFile(path.join(__dirname, 'products.html'));
 });
 
-app.get('/insurance/products', (req, res) => {
-  res.sendFile(path.join(__dirname, 'products.html'));
-});
-
-app.get('/insurance/quote', (req, res) => {
+app.get('/quote-calculator', (req, res) => {
   res.sendFile(path.join(__dirname, 'quote-calculator.html'));
 });
 
-app.get('/insurance/apply', (req, res) => {
-  res.sendFile(path.join(__dirname, 'quote-calculator.html'));
+app.get('/claims', (req, res) => {
+  res.sendFile(path.join(__dirname, 'claims.html'));
 });
 
-app.get('/insurance/payment', (req, res) => {
+app.get('/payment', (req, res) => {
   res.sendFile(path.join(__dirname, 'payment.html'));
 });
 
-app.get('/insurance/claims', (req, res) => {
-  res.sendFile(path.join(__dirname, 'claims.html'));
-});
+app.get(['/insurance', '/insurance/products'], (req, res) => res.redirect(308, '/products'));
+app.get(['/insurance/quote', '/insurance/apply'], (req, res) => res.redirect(308, '/quote-calculator'));
+app.get('/insurance/payment', (req, res) => res.redirect(308, '/payment'));
+app.get('/insurance/claims', (req, res) => res.redirect(308, '/claims'));
 
 app.get('/payment-success', (req, res) => {
   res.sendFile(path.join(__dirname, 'payment-success.html'));
@@ -481,9 +502,11 @@ app.get('/payment-cancelled', (req, res) => {
   res.sendFile(path.join(__dirname, 'payment-cancelled.html'));
 });
 
-app.get('/payment/callback', (req, res) => {
+app.get('/payment-callback', (req, res) => {
   res.sendFile(path.join(__dirname, 'payment-callback.html'));
 });
+
+app.get('/payment/callback', (req, res) => res.redirect(308, '/payment-callback'));
 
 app.get('/contact', (req, res) => {
   res.sendFile(path.join(__dirname, 'contact.html'));
@@ -2330,6 +2353,13 @@ app.post('/api/send-email', async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server is running' });
+});
+
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ success: false, message: 'Not found.' });
+  }
+  return res.status(404).sendFile(path.join(__dirname, '404.html'));
 });
 
 async function startServer() {

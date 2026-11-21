@@ -8,34 +8,43 @@
     {
       "source": "/api/:path*",
       "destination": "https://mkca-insurance-api.onrender.com/api/:path*"
-    },
+    }
+  ],
+  "redirects": [
     {
       "source": "/insurance",
-      "destination": "/products.html"
+      "destination": "/products",
+      "statusCode": 308
     },
     {
       "source": "/insurance/products",
-      "destination": "/products.html"
+      "destination": "/products",
+      "statusCode": 308
     },
     {
       "source": "/insurance/quote",
-      "destination": "/quote-calculator.html"
+      "destination": "/quote-calculator",
+      "statusCode": 308
     },
     {
       "source": "/insurance/apply",
-      "destination": "/quote-calculator.html"
+      "destination": "/quote-calculator",
+      "statusCode": 308
     },
     {
       "source": "/insurance/payment",
-      "destination": "/payment.html"
+      "destination": "/payment",
+      "statusCode": 308
     },
     {
       "source": "/insurance/claims",
-      "destination": "/claims.html"
+      "destination": "/claims",
+      "statusCode": 308
     },
     {
       "source": "/payment/callback",
-      "destination": "/payment-callback.html"
+      "destination": "/payment-callback",
+      "statusCode": 308
     }
   ]
 }
