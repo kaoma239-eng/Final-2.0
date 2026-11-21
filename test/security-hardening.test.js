@@ -499,7 +499,7 @@ test('all pages use the root MKCA favicon and expose crawler rules', async () =>
 
     const sitemap = await fetch(`http://127.0.0.1:${port}/sitemap.xml`);
     assert.equal(sitemap.status, 200);
-    assert.match(await sitemap.text(), /https:\/\/mkcharteredaccountants\.co\//);
+    assert.match(await sitemap.text(), /https:\/\/www\.mkcharteredaccountants\.co\//);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

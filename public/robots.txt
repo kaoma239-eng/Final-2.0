@@ -6,4 +6,4 @@ Allow: /
 
 User-agent: *
 Allow: /
-Sitemap: https://mkcharteredaccountants.co/sitemap.xml
+Sitemap: https://www.mkcharteredaccountants.co/sitemap.xml
